@@ -1,0 +1,6 @@
+/node_modules/
+/src/
+README.md 
+rollup.config.js
+
+.DS_Store

@@ -1,0 +1,115 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: rgb(51, 51, 51);
+
+}
+
+form {
+    text-align: center;
+}
+
+
+#LightBar {
+    border-collapse: separate;
+    border-spacing: 38px 15px;
+}
+
+.light {
+    width: 30px;
+    height: 30px;
+    background: #5ab4cd;
+    border: solid #1b858e 2px;
+    border-radius: 10px;
+}
+
+input {
+    height: 50px;
+    color: white;
+    font-family: 'Press Start 2P', cursive;
+    text-align: center;
+    font-size: 30px;
+    background: #0d0c0c;
+    border-radius: 10px;
+}
+
+textarea {
+    width: 567px;
+    height: 300px;
+    margin-bottom: 20px;
+    padding: 20px;
+    font-family: 'Press Start 2P', cursive;
+    background: #0d0c0c;
+    color: #ffff00;
+    border: solid #ffff00 1px;
+    border-radius: 10px;
+    resize: none;
+    line-height: 2;
+    overflow: hidden;
+}
+
+#TryCounter {
+    margin: 25px;
+    font-size: 15px;
+    border: none;
+    display: none;
+}
+
+#CurrentCode {
+    margin: 25px;
+    width: 600px;
+    display: none;
+}
+
+#CurrentGuess input,
+#PreviousGuess input {
+    margin-bottom: 25px;
+    width: 70px;
+    height: 70px;
+}
+
+table {
+    margin: auto;
+}
+
+button {
+    width: 100px;
+    height: 100px;
+    font-size: 30px;
+    border-radius: 10px;
+    border-color: rgb(31, 27, 12);
+    background: rgb(38, 49, 69);
+    color: white;
+    cursor: pointer;
+}
+
+button:focus {
+    outline: 0;
+}
+
+button:hover {
+    background-color: rgb(30, 39, 54);
+}
+
+button:active {
+    transform: translateY(4px);
+}
+
+#Clear {
+    background: #b43131;
+}
+
+#Clear:hover {
+    background-color: #8e2727;
+}
+
+#Submit {
+    background: #18692b;
+}
+
+#Submit:hover {
+    background-color: #144d21;
+}

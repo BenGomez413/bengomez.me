@@ -1,0 +1,133 @@
+* {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: rgb(37, 36, 48);
+  color: white;
+  text-align: center;
+  font-family: monospace;
+  text-align: center;
+}
+
+.option-container { 
+  margin: 50px 0 8px 0;
+}
+
+.option {
+  background-color: rgba(0, 0, 0, 0.178);
+  display: inline-block;
+  width: 200px;
+  height: 200px;
+  border-radius: 0px;
+  color: rgb(81, 196, 196);
+  font-size: 100px;
+}
+
+.option:hover {
+  cursor: pointer;
+  color: rgb(148, 224, 224);
+}
+
+.option:hover i {
+  transform: translateY(-10px);
+  color: rgb(148, 224, 224);
+}
+
+.option i {
+  vertical-align: middle;
+  line-height: 200px;
+  opacity: 100%;
+}
+
+.scoreboard{
+  background-color: rgba(0, 0, 0, 0.178);
+  width: 615px;
+  margin: auto;
+}
+.scoreboard h1{
+  padding: 5px;
+}
+
+.scoreboard div{
+  display: inline-block;
+  width: 32%;
+  height: 50px;
+  font-size: 1.2rem;
+}
+
+
+.animation-container{
+  width: 100vw;
+  margin-top: 10px;
+  background-color: rgba(0, 0, 0, 0.178);
+  height: 500px;
+}
+
+.hand{
+  display: inline-block;
+  display: none;
+  margin: 0 10px;
+}
+
+.hand i{
+  vertical-align: middle;
+  line-height: 500px;
+  font-size: 200px;
+  color: rgb(202, 233, 233);
+}
+
+.user-hand{
+  transform: rotate(90deg);
+}
+
+.computer-hand{
+  transform: scaleX(-1) rotate(90deg);
+}
+
+.run-left-animation{
+  animation: left-hand 2s linear;
+}
+
+.run-right-animation{
+  animation: right-hand 2s linear;
+}
+
+ 
+@keyframes left-hand {
+  0%   {transform: rotate(90deg) translateY(150px);}
+  20% {transform: rotate(85deg) translateX(-20px); }
+  30% {transform: rotate(95deg) translateX(20px);}
+  40% {transform: rotate(85deg) translateX(-20px);}
+  50% {transform: rotate(95deg) translateX(20px);}
+  60% {transform: rotate(80deg) translateX(-50px);}
+  70% {transform: rotate(95deg) translateX(0px);}
+  
+  100% {transform: rotate(90deg) translateY(0px);}
+} 
+
+@keyframes right-hand {
+  0%   {transform: scaleX(-1) rotate(90deg) translateY(150px);}
+  20% {transform: scaleX(-1) rotate(85deg) translateX(-20px);}
+  30% {transform: scaleX(-1) rotate(95deg) translateX(20px);}
+  40% {transform: scaleX(-1) rotate(85deg) translateX(-20px);}
+  50% {transform: scaleX(-1) rotate(95deg) translateX(20px);}
+  60% {transform: scaleX(-1) rotate(80deg) translateX(-50px);}
+  70% {transform: scaleX(-1) rotate(90deg) translateY(0px);}
+  100% {transform: scaleX(-1) rotate(90deg) translateY(0px);}
+} 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

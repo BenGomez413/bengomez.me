@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.9.0/p5.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.9.0/addons/p5.dom.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.9.0/addons/p5.sound.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <meta charset="utf-8" />
+    <link href="https://fonts.googleapis.com/css?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="screen">
+        <form>
+            <input type="text" id="CurrentCode" disabled><br>
+            <input type="text" id="TryCounter"><br>
+
+            <table id="LightBar">
+                <tr>
+                    <td class="light" id="Light0"></td>
+                    <td class="light" id="Light1"></td>
+                    <td class="light" id="Light2"></td>
+                    <td class="light" id="Light3"></td>
+                    <td class="light" id="Light4"></td>
+                    <td class="light" id="Light5"></td>
+                    <td class="light" id="Light6"></td>
+                </tr>
+            </table>
+
+            <table>
+                <tr id="CurrentGuess">
+                    <td><input type="text" id="0" disabled></td>
+                    <td><input type="text" id="1" disabled></td>
+                    <td><input type="text" id="2" disabled></td>
+                    <td><input type="text" id="3" disabled></td>
+                    <td><input type="text" id="4" disabled></td>
+                    <td><input type="text" id="5" disabled></td>
+                    <td><input type="text" id="6" disabled></td>
+                    <td><input type="text" id="7" disabled></td>
+                </tr>
+
+                <tr id="PreviousGuess">
+                    <td><input type="text" id="PG0" disabled></td>
+                    <td><input type="text" id="PG1" disabled></td>
+                    <td><input type="text" id="PG2" disabled></td>
+                    <td><input type="text" id="PG3" disabled></td>
+                    <td><input type="text" id="PG4" disabled></td>
+                    <td><input type="text" id="PG5" disabled></td>
+                    <td><input type="text" id="PG6" disabled></td>
+                    <td><input type="text" id="PG7" disabled></td>
+                </tr>
+
+            </table>
+            <textarea id="Console" disabled></textarea>
+        </form>
+    </div>
+
+    <table>
+        <tr>
+            <td><button type="button" onclick="clicked(0)">!</button></td>
+            <td><button type="button" onclick="clicked(1)">@</button></td>
+            <td><button type="button" onclick="clicked(2)">#</button></td>
+            <td><button type="button" onclick="clicked(3)">$</button></td>
+            <td><button type="button" onclick="clicked(4)">%</button></td>
+            <td><button type="button" id="Clear" onclick="erase()">X</button></td>
+        </tr>
+        <tr>
+            <td><button type="button" onclick="clicked(5)">^</button></td>
+            <td><button type="button" onclick="clicked(6)">&</button></td>
+            <td><button type="button" onclick="clicked(7)">*</button></td>
+            <td><button type="button" onclick="clicked(8)">+</button></td>
+            <td><button type="button" onclick="clicked(9)">~</button></td>
+            <td><button type="button" id="Submit" onclick="submit()">&#10003</button></td>
+        </tr>
+    </table>
+    <script src="sketch.js"></script>
+</body></html>

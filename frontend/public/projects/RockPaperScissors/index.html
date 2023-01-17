@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://kit.fontawesome.com/b09f28c6d0.js" crossorigin="anonymous"></script>
+  <title>Rock Paper Scissors</title>
+</head>
+
+<body>
+
+  <div class="option-container">
+    <div class="option rock" id="rock" onclick="play(id)">
+      <i class="fas fa-hand-rock"></i>
+    </div>
+    <div class="option paper" id="paper" onclick="play(id)">
+      <i class="fas fa-hand-paper"></i>
+    </div>
+    <div class="option scissors" id="scissors" onclick="play(id)">
+      <i class="fas fa-hand-scissors"></i>
+    </div>
+  </div>
+
+  <div class="scoreboard">
+    <h1>GAMES PLAYED</h1>
+    <div id="user-wins-container">
+      <i class="fas fa-user"></i>
+      <span id="user-wins">0</span>
+    </div>
+
+    <div>
+      <span id="games-played">0</span>
+    </div>
+
+    <div id="computer-wins-container">
+      <span id="computer-wins">0</span>
+      <i class="fas fa-robot"></i>
+    </div>
+  </div>
+
+  <div class="animation-container">
+    <div class="hand user-hand" id="user-hand-div"><i id="user-hand" class="fas fa-hand-rock"></i></div>
+    <div class="hand computer-hand" id="computer-hand-div"><i id="computer-hand" class="fas fa-hand-rock"></i></div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
