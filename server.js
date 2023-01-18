@@ -22,6 +22,7 @@ const io = new Server(server, {
 
 //mongoose
 const mongoose = require('mongoose')
+mongoose.set("strictQuery", false);
 mongoose.connect(process.env.MONGODB_URL)
 
 const userHandlers = require('./handlers/userHandler.js')
