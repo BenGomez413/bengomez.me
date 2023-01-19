@@ -116,7 +116,9 @@ var app = (function () {
         target.insertBefore(node, anchor || null);
     }
     function detach(node) {
-        node.parentNode.removeChild(node);
+        if (node.parentNode) {
+            node.parentNode.removeChild(node);
+        }
     }
     function destroy_each(iterations, detaching) {
         for (let i = 0; i < iterations.length; i += 1) {
@@ -180,9 +182,9 @@ var app = (function () {
     function toggle_class(element, name, toggle) {
         element.classList[toggle ? 'add' : 'remove'](name);
     }
-    function custom_event(type, detail, bubbles = false) {
+    function custom_event(type, detail, { bubbles = false, cancelable = false } = {}) {
         const e = document.createEvent('CustomEvent');
-        e.initCustomEvent(type, bubbles, false, detail);
+        e.initCustomEvent(type, bubbles, cancelable, detail);
         return e;
     }
 
@@ -195,12 +197,34 @@ var app = (function () {
             throw new Error('Function called outside component initialization');
         return current_component;
     }
+    /**
+     * The `onMount` function schedules a callback to run as soon as the component has been mounted to the DOM.
+     * It must be called during the component's initialisation (but doesn't need to live *inside* the component;
+     * it can be called from an external module).
+     *
+     * `onMount` does not run inside a [server-side component](/docs#run-time-server-side-component-api).
+     *
+     * https://svelte.dev/docs#run-time-svelte-onmount
+     */
     function onMount(fn) {
         get_current_component().$$.on_mount.push(fn);
     }
+    /**
+     * Schedules a callback to run immediately after the component has been updated.
+     *
+     * The first time the callback runs will be after the initial `onMount`
+     */
     function afterUpdate(fn) {
         get_current_component().$$.after_update.push(fn);
     }
+    /**
+     * Schedules a callback to run immediately before the component is unmounted.
+     *
+     * Out of `onMount`, `beforeUpdate`, `afterUpdate` and `onDestroy`, this is the
+     * only one that runs inside a server-side component.
+     *
+     * https://svelte.dev/docs#run-time-svelte-ondestroy
+     */
     function onDestroy(fn) {
         get_current_component().$$.on_destroy.push(fn);
     }
@@ -244,15 +268,29 @@ var app = (function () {
     const seen_callbacks = new Set();
     let flushidx = 0; // Do *not* move this inside the flush() function
     function flush() {
+        // Do not reenter flush while dirty components are updated, as this can
+        // result in an infinite loop. Instead, let the inner flush handle it.
+        // Reentrancy is ok afterwards for bindings etc.
+        if (flushidx !== 0) {
+            return;
+        }
         const saved_component = current_component;
         do {
             // first, call beforeUpdate functions
             // and update components
-            while (flushidx < dirty_components.length) {
-                const component = dirty_components[flushidx];
-                flushidx++;
-                set_current_component(component);
-                update(component.$$);
+            try {
+                while (flushidx < dirty_components.length) {
+                    const component = dirty_components[flushidx];
+                    flushidx++;
+                    set_current_component(component);
+                    update(component.$$);
+                }
+            }
+            catch (e) {
+                // reset dirty state to not end up in a deadlocked state and then rethrow
+                dirty_components.length = 0;
+                flushidx = 0;
+                throw e;
             }
             set_current_component(null);
             dirty_components.length = 0;
@@ -325,6 +363,9 @@ var app = (function () {
             });
             block.o(local);
         }
+        else if (callback) {
+            callback();
+        }
     }
 
     const globals = (typeof window !== 'undefined'
@@ -344,14 +385,17 @@ var app = (function () {
         block && block.c();
     }
     function mount_component(component, target, anchor, customElement) {
-        const { fragment, on_mount, on_destroy, after_update } = component.$$;
+        const { fragment, after_update } = component.$$;
         fragment && fragment.m(target, anchor);
         if (!customElement) {
             // onMount happens before the initial afterUpdate
             add_render_callback(() => {
-                const new_on_destroy = on_mount.map(run).filter(is_function);
-                if (on_destroy) {
-                    on_destroy.push(...new_on_destroy);
+                const new_on_destroy = component.$$.on_mount.map(run).filter(is_function);
+                // if the component was destroyed immediately
+                // it will update the `$$.on_destroy` reference to `null`.
+                // the destructured on_destroy may still reference to the old array
+                if (component.$$.on_destroy) {
+                    component.$$.on_destroy.push(...new_on_destroy);
                 }
                 else {
                     // Edge case - component was destroyed immediately,
@@ -387,7 +431,7 @@ var app = (function () {
         set_current_component(component);
         const $$ = component.$$ = {
             fragment: null,
-            ctx: null,
+            ctx: [],
             // state
             props,
             update: noop,
@@ -452,6 +496,9 @@ var app = (function () {
             this.$destroy = noop;
         }
         $on(type, callback) {
+            if (!is_function(callback)) {
+                return noop;
+            }
             const callbacks = (this.$$.callbacks[type] || (this.$$.callbacks[type] = []));
             callbacks.push(callback);
             return () => {
@@ -470,7 +517,7 @@ var app = (function () {
     }
 
     function dispatch_dev(type, detail) {
-        document.dispatchEvent(custom_event(type, Object.assign({ version: '3.47.0' }, detail), true));
+        document.dispatchEvent(custom_event(type, Object.assign({ version: '3.55.1' }, detail), { bubbles: true }));
     }
     function append_dev(target, node) {
         dispatch_dev('SvelteDOMInsert', { target, node });
@@ -599,214 +646,164 @@ var app = (function () {
         return { set, update, subscribe };
     }
 
-    /**
-     * Parses an URI
-     *
-     * @author Steven Levithan <stevenlevithan.com> (MIT license)
-     * @api private
-     */
-    var re = /^(?:(?![^:@]+:[^:@\/]*@)(http|https|ws|wss):\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?((?:[a-f0-9]{0,4}:){2,7}[a-f0-9]{0,4}|[^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/;
+    const PACKET_TYPES = Object.create(null); // no Map = no polyfill
+    PACKET_TYPES["open"] = "0";
+    PACKET_TYPES["close"] = "1";
+    PACKET_TYPES["ping"] = "2";
+    PACKET_TYPES["pong"] = "3";
+    PACKET_TYPES["message"] = "4";
+    PACKET_TYPES["upgrade"] = "5";
+    PACKET_TYPES["noop"] = "6";
+    const PACKET_TYPES_REVERSE = Object.create(null);
+    Object.keys(PACKET_TYPES).forEach(key => {
+        PACKET_TYPES_REVERSE[PACKET_TYPES[key]] = key;
+    });
+    const ERROR_PACKET = { type: "error", data: "parser error" };
 
-    var parts = [
-        'source', 'protocol', 'authority', 'userInfo', 'user', 'password', 'host', 'port', 'relative', 'path', 'directory', 'file', 'query', 'anchor'
-    ];
-
-    var parseuri = function parseuri(str) {
-        var src = str,
-            b = str.indexOf('['),
-            e = str.indexOf(']');
-
-        if (b != -1 && e != -1) {
-            str = str.substring(0, b) + str.substring(b, e).replace(/:/g, ';') + str.substring(e, str.length);
+    const withNativeBlob$1 = typeof Blob === "function" ||
+        (typeof Blob !== "undefined" &&
+            Object.prototype.toString.call(Blob) === "[object BlobConstructor]");
+    const withNativeArrayBuffer$2 = typeof ArrayBuffer === "function";
+    // ArrayBuffer.isView method is not defined in IE10
+    const isView$1 = obj => {
+        return typeof ArrayBuffer.isView === "function"
+            ? ArrayBuffer.isView(obj)
+            : obj && obj.buffer instanceof ArrayBuffer;
+    };
+    const encodePacket = ({ type, data }, supportsBinary, callback) => {
+        if (withNativeBlob$1 && data instanceof Blob) {
+            if (supportsBinary) {
+                return callback(data);
+            }
+            else {
+                return encodeBlobAsBase64(data, callback);
+            }
         }
-
-        var m = re.exec(str || ''),
-            uri = {},
-            i = 14;
-
-        while (i--) {
-            uri[parts[i]] = m[i] || '';
+        else if (withNativeArrayBuffer$2 &&
+            (data instanceof ArrayBuffer || isView$1(data))) {
+            if (supportsBinary) {
+                return callback(data);
+            }
+            else {
+                return encodeBlobAsBase64(new Blob([data]), callback);
+            }
         }
-
-        if (b != -1 && e != -1) {
-            uri.source = src;
-            uri.host = uri.host.substring(1, uri.host.length - 1).replace(/;/g, ':');
-            uri.authority = uri.authority.replace('[', '').replace(']', '').replace(/;/g, ':');
-            uri.ipv6uri = true;
-        }
-
-        uri.pathNames = pathNames(uri, uri['path']);
-        uri.queryKey = queryKey(uri, uri['query']);
-
-        return uri;
+        // plain string
+        return callback(PACKET_TYPES[type] + (data || ""));
+    };
+    const encodeBlobAsBase64 = (data, callback) => {
+        const fileReader = new FileReader();
+        fileReader.onload = function () {
+            const content = fileReader.result.split(",")[1];
+            callback("b" + (content || ""));
+        };
+        return fileReader.readAsDataURL(data);
     };
 
-    function pathNames(obj, path) {
-        var regx = /\/{2,9}/g,
-            names = path.replace(regx, "/").split("/");
-
-        if (path.substr(0, 1) == '/' || path.length === 0) {
-            names.splice(0, 1);
-        }
-        if (path.substr(path.length - 1, 1) == '/') {
-            names.splice(names.length - 1, 1);
-        }
-
-        return names;
+    // imported from https://github.com/socketio/base64-arraybuffer
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    // Use a lookup table to find the index.
+    const lookup$1 = typeof Uint8Array === 'undefined' ? [] : new Uint8Array(256);
+    for (let i = 0; i < chars.length; i++) {
+        lookup$1[chars.charCodeAt(i)] = i;
     }
-
-    function queryKey(uri, query) {
-        var data = {};
-
-        query.replace(/(?:^|&)([^&=]*)=?([^&]*)/g, function ($0, $1, $2) {
-            if ($1) {
-                data[$1] = $2;
+    const decode$1 = (base64) => {
+        let bufferLength = base64.length * 0.75, len = base64.length, i, p = 0, encoded1, encoded2, encoded3, encoded4;
+        if (base64[base64.length - 1] === '=') {
+            bufferLength--;
+            if (base64[base64.length - 2] === '=') {
+                bufferLength--;
             }
+        }
+        const arraybuffer = new ArrayBuffer(bufferLength), bytes = new Uint8Array(arraybuffer);
+        for (i = 0; i < len; i += 4) {
+            encoded1 = lookup$1[base64.charCodeAt(i)];
+            encoded2 = lookup$1[base64.charCodeAt(i + 1)];
+            encoded3 = lookup$1[base64.charCodeAt(i + 2)];
+            encoded4 = lookup$1[base64.charCodeAt(i + 3)];
+            bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
+            bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+            bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
+        }
+        return arraybuffer;
+    };
+
+    const withNativeArrayBuffer$1 = typeof ArrayBuffer === "function";
+    const decodePacket = (encodedPacket, binaryType) => {
+        if (typeof encodedPacket !== "string") {
+            return {
+                type: "message",
+                data: mapBinary(encodedPacket, binaryType)
+            };
+        }
+        const type = encodedPacket.charAt(0);
+        if (type === "b") {
+            return {
+                type: "message",
+                data: decodeBase64Packet(encodedPacket.substring(1), binaryType)
+            };
+        }
+        const packetType = PACKET_TYPES_REVERSE[type];
+        if (!packetType) {
+            return ERROR_PACKET;
+        }
+        return encodedPacket.length > 1
+            ? {
+                type: PACKET_TYPES_REVERSE[type],
+                data: encodedPacket.substring(1)
+            }
+            : {
+                type: PACKET_TYPES_REVERSE[type]
+            };
+    };
+    const decodeBase64Packet = (data, binaryType) => {
+        if (withNativeArrayBuffer$1) {
+            const decoded = decode$1(data);
+            return mapBinary(decoded, binaryType);
+        }
+        else {
+            return { base64: true, data }; // fallback for old browsers
+        }
+    };
+    const mapBinary = (data, binaryType) => {
+        switch (binaryType) {
+            case "blob":
+                return data instanceof ArrayBuffer ? new Blob([data]) : data;
+            case "arraybuffer":
+            default:
+                return data; // assuming the data is already an ArrayBuffer
+        }
+    };
+
+    const SEPARATOR = String.fromCharCode(30); // see https://en.wikipedia.org/wiki/Delimiter#ASCII_delimited_text
+    const encodePayload = (packets, callback) => {
+        // some packets may be added to the array while encoding, so the initial length must be saved
+        const length = packets.length;
+        const encodedPackets = new Array(length);
+        let count = 0;
+        packets.forEach((packet, i) => {
+            // force base64 encoding for binary packets
+            encodePacket(packet, false, encodedPacket => {
+                encodedPackets[i] = encodedPacket;
+                if (++count === length) {
+                    callback(encodedPackets.join(SEPARATOR));
+                }
+            });
         });
-
-        return data;
-    }
-
-    /**
-     * URL parser.
-     *
-     * @param uri - url
-     * @param path - the request path of the connection
-     * @param loc - An object meant to mimic window.location.
-     *        Defaults to window.location.
-     * @public
-     */
-    function url(uri, path = "", loc) {
-        let obj = uri;
-        // default to window.location
-        loc = loc || (typeof location !== "undefined" && location);
-        if (null == uri)
-            uri = loc.protocol + "//" + loc.host;
-        // relative path support
-        if (typeof uri === "string") {
-            if ("/" === uri.charAt(0)) {
-                if ("/" === uri.charAt(1)) {
-                    uri = loc.protocol + uri;
-                }
-                else {
-                    uri = loc.host + uri;
-                }
-            }
-            if (!/^(https?|wss?):\/\//.test(uri)) {
-                if ("undefined" !== typeof loc) {
-                    uri = loc.protocol + "//" + uri;
-                }
-                else {
-                    uri = "https://" + uri;
-                }
-            }
-            // parse
-            obj = parseuri(uri);
-        }
-        // make sure we treat `localhost:80` and `localhost` equally
-        if (!obj.port) {
-            if (/^(http|ws)$/.test(obj.protocol)) {
-                obj.port = "80";
-            }
-            else if (/^(http|ws)s$/.test(obj.protocol)) {
-                obj.port = "443";
+    };
+    const decodePayload = (encodedPayload, binaryType) => {
+        const encodedPackets = encodedPayload.split(SEPARATOR);
+        const packets = [];
+        for (let i = 0; i < encodedPackets.length; i++) {
+            const decodedPacket = decodePacket(encodedPackets[i], binaryType);
+            packets.push(decodedPacket);
+            if (decodedPacket.type === "error") {
+                break;
             }
         }
-        obj.path = obj.path || "/";
-        const ipv6 = obj.host.indexOf(":") !== -1;
-        const host = ipv6 ? "[" + obj.host + "]" : obj.host;
-        // define unique id
-        obj.id = obj.protocol + "://" + host + ":" + obj.port + path;
-        // define href
-        obj.href =
-            obj.protocol +
-                "://" +
-                host +
-                (loc && loc.port === obj.port ? "" : ":" + obj.port);
-        return obj;
-    }
-
-    function createCommonjsModule(fn) {
-      var module = { exports: {} };
-    	return fn(module, module.exports), module.exports;
-    }
-
-    var hasCors = createCommonjsModule(function (module) {
-    /**
-     * Module exports.
-     *
-     * Logic borrowed from Modernizr:
-     *
-     *   - https://github.com/Modernizr/Modernizr/blob/master/feature-detects/cors.js
-     */
-
-    try {
-      module.exports = typeof XMLHttpRequest !== 'undefined' &&
-        'withCredentials' in new XMLHttpRequest();
-    } catch (err) {
-      // if XMLHttp support is disabled in IE then it will throw
-      // when trying to create
-      module.exports = false;
-    }
-    });
-
-    var globalThis$1 = (() => {
-        if (typeof self !== "undefined") {
-            return self;
-        }
-        else if (typeof window !== "undefined") {
-            return window;
-        }
-        else {
-            return Function("return this")();
-        }
-    })();
-
-    // browser shim for xmlhttprequest module
-    function XMLHttpRequest$1 (opts) {
-        const xdomain = opts.xdomain;
-        // XMLHttpRequest can be disabled on IE
-        try {
-            if ("undefined" !== typeof XMLHttpRequest && (!xdomain || hasCors)) {
-                return new XMLHttpRequest();
-            }
-        }
-        catch (e) { }
-        if (!xdomain) {
-            try {
-                return new globalThis$1[["Active"].concat("Object").join("X")]("Microsoft.XMLHTTP");
-            }
-            catch (e) { }
-        }
-    }
-
-    function pick(obj, ...attr) {
-        return attr.reduce((acc, k) => {
-            if (obj.hasOwnProperty(k)) {
-                acc[k] = obj[k];
-            }
-            return acc;
-        }, {});
-    }
-    // Keep a reference to the real timeout functions so they can be used when overridden
-    const NATIVE_SET_TIMEOUT = setTimeout;
-    const NATIVE_CLEAR_TIMEOUT = clearTimeout;
-    function installTimerFunctions(obj, opts) {
-        if (opts.useNativeTimers) {
-            obj.setTimeoutFn = NATIVE_SET_TIMEOUT.bind(globalThis$1);
-            obj.clearTimeoutFn = NATIVE_CLEAR_TIMEOUT.bind(globalThis$1);
-        }
-        else {
-            obj.setTimeoutFn = setTimeout.bind(globalThis$1);
-            obj.clearTimeoutFn = clearTimeout.bind(globalThis$1);
-        }
-    }
-
-    /**
-     * Expose `Emitter`.
-     */
-
-    var Emitter_1 = Emitter;
+        return packets;
+    };
+    const protocol$1 = 4;
 
     /**
      * Initialize a new `Emitter`.
@@ -978,170 +975,79 @@ var app = (function () {
       return !! this.listeners(event).length;
     };
 
-    const PACKET_TYPES = Object.create(null); // no Map = no polyfill
-    PACKET_TYPES["open"] = "0";
-    PACKET_TYPES["close"] = "1";
-    PACKET_TYPES["ping"] = "2";
-    PACKET_TYPES["pong"] = "3";
-    PACKET_TYPES["message"] = "4";
-    PACKET_TYPES["upgrade"] = "5";
-    PACKET_TYPES["noop"] = "6";
-    const PACKET_TYPES_REVERSE = Object.create(null);
-    Object.keys(PACKET_TYPES).forEach(key => {
-        PACKET_TYPES_REVERSE[PACKET_TYPES[key]] = key;
-    });
-    const ERROR_PACKET = { type: "error", data: "parser error" };
-
-    const withNativeBlob$1 = typeof Blob === "function" ||
-        (typeof Blob !== "undefined" &&
-            Object.prototype.toString.call(Blob) === "[object BlobConstructor]");
-    const withNativeArrayBuffer$2 = typeof ArrayBuffer === "function";
-    // ArrayBuffer.isView method is not defined in IE10
-    const isView$1 = obj => {
-        return typeof ArrayBuffer.isView === "function"
-            ? ArrayBuffer.isView(obj)
-            : obj && obj.buffer instanceof ArrayBuffer;
-    };
-    const encodePacket = ({ type, data }, supportsBinary, callback) => {
-        if (withNativeBlob$1 && data instanceof Blob) {
-            if (supportsBinary) {
-                return callback(data);
-            }
-            else {
-                return encodeBlobAsBase64(data, callback);
-            }
+    const globalThisShim = (() => {
+        if (typeof self !== "undefined") {
+            return self;
         }
-        else if (withNativeArrayBuffer$2 &&
-            (data instanceof ArrayBuffer || isView$1(data))) {
-            if (supportsBinary) {
-                return callback(data);
-            }
-            else {
-                return encodeBlobAsBase64(new Blob([data]), callback);
-            }
-        }
-        // plain string
-        return callback(PACKET_TYPES[type] + (data || ""));
-    };
-    const encodeBlobAsBase64 = (data, callback) => {
-        const fileReader = new FileReader();
-        fileReader.onload = function () {
-            const content = fileReader.result.split(",")[1];
-            callback("b" + content);
-        };
-        return fileReader.readAsDataURL(data);
-    };
-
-    /*
-     * base64-arraybuffer 1.0.1 <https://github.com/niklasvh/base64-arraybuffer>
-     * Copyright (c) 2022 Niklas von Hertzen <https://hertzen.com>
-     * Released under MIT License
-     */
-    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-    // Use a lookup table to find the index.
-    var lookup$1 = typeof Uint8Array === 'undefined' ? [] : new Uint8Array(256);
-    for (var i$1 = 0; i$1 < chars.length; i$1++) {
-        lookup$1[chars.charCodeAt(i$1)] = i$1;
-    }
-    var decode$2 = function (base64) {
-        var bufferLength = base64.length * 0.75, len = base64.length, i, p = 0, encoded1, encoded2, encoded3, encoded4;
-        if (base64[base64.length - 1] === '=') {
-            bufferLength--;
-            if (base64[base64.length - 2] === '=') {
-                bufferLength--;
-            }
-        }
-        var arraybuffer = new ArrayBuffer(bufferLength), bytes = new Uint8Array(arraybuffer);
-        for (i = 0; i < len; i += 4) {
-            encoded1 = lookup$1[base64.charCodeAt(i)];
-            encoded2 = lookup$1[base64.charCodeAt(i + 1)];
-            encoded3 = lookup$1[base64.charCodeAt(i + 2)];
-            encoded4 = lookup$1[base64.charCodeAt(i + 3)];
-            bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
-            bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
-            bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
-        }
-        return arraybuffer;
-    };
-
-    const withNativeArrayBuffer$1 = typeof ArrayBuffer === "function";
-    const decodePacket = (encodedPacket, binaryType) => {
-        if (typeof encodedPacket !== "string") {
-            return {
-                type: "message",
-                data: mapBinary(encodedPacket, binaryType)
-            };
-        }
-        const type = encodedPacket.charAt(0);
-        if (type === "b") {
-            return {
-                type: "message",
-                data: decodeBase64Packet(encodedPacket.substring(1), binaryType)
-            };
-        }
-        const packetType = PACKET_TYPES_REVERSE[type];
-        if (!packetType) {
-            return ERROR_PACKET;
-        }
-        return encodedPacket.length > 1
-            ? {
-                type: PACKET_TYPES_REVERSE[type],
-                data: encodedPacket.substring(1)
-            }
-            : {
-                type: PACKET_TYPES_REVERSE[type]
-            };
-    };
-    const decodeBase64Packet = (data, binaryType) => {
-        if (withNativeArrayBuffer$1) {
-            const decoded = decode$2(data);
-            return mapBinary(decoded, binaryType);
+        else if (typeof window !== "undefined") {
+            return window;
         }
         else {
-            return { base64: true, data }; // fallback for old browsers
+            return Function("return this")();
         }
-    };
-    const mapBinary = (data, binaryType) => {
-        switch (binaryType) {
-            case "blob":
-                return data instanceof ArrayBuffer ? new Blob([data]) : data;
-            case "arraybuffer":
-            default:
-                return data; // assuming the data is already an ArrayBuffer
-        }
-    };
+    })();
 
-    const SEPARATOR = String.fromCharCode(30); // see https://en.wikipedia.org/wiki/Delimiter#ASCII_delimited_text
-    const encodePayload = (packets, callback) => {
-        // some packets may be added to the array while encoding, so the initial length must be saved
-        const length = packets.length;
-        const encodedPackets = new Array(length);
-        let count = 0;
-        packets.forEach((packet, i) => {
-            // force base64 encoding for binary packets
-            encodePacket(packet, false, encodedPacket => {
-                encodedPackets[i] = encodedPacket;
-                if (++count === length) {
-                    callback(encodedPackets.join(SEPARATOR));
-                }
-            });
-        });
-    };
-    const decodePayload = (encodedPayload, binaryType) => {
-        const encodedPackets = encodedPayload.split(SEPARATOR);
-        const packets = [];
-        for (let i = 0; i < encodedPackets.length; i++) {
-            const decodedPacket = decodePacket(encodedPackets[i], binaryType);
-            packets.push(decodedPacket);
-            if (decodedPacket.type === "error") {
-                break;
+    function pick(obj, ...attr) {
+        return attr.reduce((acc, k) => {
+            if (obj.hasOwnProperty(k)) {
+                acc[k] = obj[k];
+            }
+            return acc;
+        }, {});
+    }
+    // Keep a reference to the real timeout functions so they can be used when overridden
+    const NATIVE_SET_TIMEOUT = setTimeout;
+    const NATIVE_CLEAR_TIMEOUT = clearTimeout;
+    function installTimerFunctions(obj, opts) {
+        if (opts.useNativeTimers) {
+            obj.setTimeoutFn = NATIVE_SET_TIMEOUT.bind(globalThisShim);
+            obj.clearTimeoutFn = NATIVE_CLEAR_TIMEOUT.bind(globalThisShim);
+        }
+        else {
+            obj.setTimeoutFn = setTimeout.bind(globalThisShim);
+            obj.clearTimeoutFn = clearTimeout.bind(globalThisShim);
+        }
+    }
+    // base64 encoded buffers are about 33% bigger (https://en.wikipedia.org/wiki/Base64)
+    const BASE64_OVERHEAD = 1.33;
+    // we could also have used `new Blob([obj]).size`, but it isn't supported in IE9
+    function byteLength(obj) {
+        if (typeof obj === "string") {
+            return utf8Length(obj);
+        }
+        // arraybuffer or blob
+        return Math.ceil((obj.byteLength || obj.size) * BASE64_OVERHEAD);
+    }
+    function utf8Length(str) {
+        let c = 0, length = 0;
+        for (let i = 0, l = str.length; i < l; i++) {
+            c = str.charCodeAt(i);
+            if (c < 0x80) {
+                length += 1;
+            }
+            else if (c < 0x800) {
+                length += 2;
+            }
+            else if (c < 0xd800 || c >= 0xe000) {
+                length += 3;
+            }
+            else {
+                i++;
+                length += 4;
             }
         }
-        return packets;
-    };
-    const protocol$1 = 4;
+        return length;
+    }
 
-    class Transport extends Emitter_1 {
+    class TransportError extends Error {
+        constructor(reason, description, context) {
+            super(reason);
+            this.description = description;
+            this.context = context;
+            this.type = "TransportError";
+        }
+    }
+    class Transport extends Emitter {
         /**
          * Transport abstract constructor.
          *
@@ -1160,17 +1066,14 @@ var app = (function () {
         /**
          * Emits an error.
          *
-         * @param {String} str
+         * @param {String} reason
+         * @param description
+         * @param context - the error context
          * @return {Transport} for chaining
          * @api protected
          */
-        onError(msg, desc) {
-            const err = new Error(msg);
-            // @ts-ignore
-            err.type = "TransportError";
-            // @ts-ignore
-            err.description = desc;
-            super.emit("error", err);
+        onError(reason, description, context) {
+            super.emitReserved("error", new TransportError(reason, description, context));
             return this;
         }
         /**
@@ -1216,7 +1119,7 @@ var app = (function () {
         onOpen() {
             this.readyState = "open";
             this.writable = true;
-            super.emit("open");
+            super.emitReserved("open");
         }
         /**
          * Called with data.
@@ -1234,26 +1137,22 @@ var app = (function () {
          * @api protected
          */
         onPacket(packet) {
-            super.emit("packet", packet);
+            super.emitReserved("packet", packet);
         }
         /**
          * Called upon close.
          *
          * @api protected
          */
-        onClose() {
+        onClose(details) {
             this.readyState = "closed";
-            super.emit("close");
+            super.emitReserved("close", details);
         }
     }
 
-    var alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_'.split('')
-      , length = 64
-      , map = {}
-      , seed = 0
-      , i = 0
-      , prev;
-
+    // imported from https://github.com/unshiftio/yeast
+    const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_'.split(''), length = 64, map = {};
+    let seed = 0, i = 0, prev;
     /**
      * Return a string representing the specified number.
      *
@@ -1262,33 +1161,13 @@ var app = (function () {
      * @api public
      */
     function encode$1(num) {
-      var encoded = '';
-
-      do {
-        encoded = alphabet[num % length] + encoded;
-        num = Math.floor(num / length);
-      } while (num > 0);
-
-      return encoded;
+        let encoded = '';
+        do {
+            encoded = alphabet[num % length] + encoded;
+            num = Math.floor(num / length);
+        } while (num > 0);
+        return encoded;
     }
-
-    /**
-     * Return the integer value specified by the given string.
-     *
-     * @param {String} str The string to convert.
-     * @returns {Number} The integer value represented by the string.
-     * @api public
-     */
-    function decode$1(str) {
-      var decoded = 0;
-
-      for (i = 0; i < str.length; i++) {
-        decoded = decoded * length + map[str.charAt(i)];
-      }
-
-      return decoded;
-    }
-
     /**
      * Yeast: A tiny growing id generator.
      *
@@ -1296,24 +1175,18 @@ var app = (function () {
      * @api public
      */
     function yeast() {
-      var now = encode$1(+new Date());
-
-      if (now !== prev) return seed = 0, prev = now;
-      return now +'.'+ encode$1(seed++);
+        const now = encode$1(+new Date());
+        if (now !== prev)
+            return seed = 0, prev = now;
+        return now + '.' + encode$1(seed++);
     }
-
     //
     // Map each character to its index.
     //
-    for (; i < length; i++) map[alphabet[i]] = i;
+    for (; i < length; i++)
+        map[alphabet[i]] = i;
 
-    //
-    // Expose the `yeast`, `encode` and `decode` functions.
-    //
-    yeast.encode = encode$1;
-    yeast.decode = decode$1;
-    var yeast_1 = yeast;
-
+    // imported from https://github.com/galkn/querystring
     /**
      * Compiles a querystring
      * Returns string representation of the object
@@ -1321,45 +1194,98 @@ var app = (function () {
      * @param {Object}
      * @api private
      */
-    var encode = function (obj) {
-      var str = '';
-
-      for (var i in obj) {
-        if (obj.hasOwnProperty(i)) {
-          if (str.length) str += '&';
-          str += encodeURIComponent(i) + '=' + encodeURIComponent(obj[i]);
+    function encode(obj) {
+        let str = '';
+        for (let i in obj) {
+            if (obj.hasOwnProperty(i)) {
+                if (str.length)
+                    str += '&';
+                str += encodeURIComponent(i) + '=' + encodeURIComponent(obj[i]);
+            }
         }
-      }
-
-      return str;
-    };
-
+        return str;
+    }
     /**
      * Parses a simple querystring into an object
      *
      * @param {String} qs
      * @api private
      */
+    function decode(qs) {
+        let qry = {};
+        let pairs = qs.split('&');
+        for (let i = 0, l = pairs.length; i < l; i++) {
+            let pair = pairs[i].split('=');
+            qry[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
+        }
+        return qry;
+    }
 
-    var decode = function(qs){
-      var qry = {};
-      var pairs = qs.split('&');
-      for (var i = 0, l = pairs.length; i < l; i++) {
-        var pair = pairs[i].split('=');
-        qry[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
-      }
-      return qry;
-    };
+    // imported from https://github.com/component/has-cors
+    let value = false;
+    try {
+        value = typeof XMLHttpRequest !== 'undefined' &&
+            'withCredentials' in new XMLHttpRequest();
+    }
+    catch (err) {
+        // if XMLHttp support is disabled in IE then it will throw
+        // when trying to create
+    }
+    const hasCORS = value;
 
-    var parseqs = {
-    	encode: encode,
-    	decode: decode
-    };
+    // browser shim for xmlhttprequest module
+    function XHR(opts) {
+        const xdomain = opts.xdomain;
+        // XMLHttpRequest can be disabled on IE
+        try {
+            if ("undefined" !== typeof XMLHttpRequest && (!xdomain || hasCORS)) {
+                return new XMLHttpRequest();
+            }
+        }
+        catch (e) { }
+        if (!xdomain) {
+            try {
+                return new globalThisShim[["Active"].concat("Object").join("X")]("Microsoft.XMLHTTP");
+            }
+            catch (e) { }
+        }
+    }
 
+    function empty() { }
+    const hasXHR2 = (function () {
+        const xhr = new XHR({
+            xdomain: false
+        });
+        return null != xhr.responseType;
+    })();
     class Polling extends Transport {
-        constructor() {
-            super(...arguments);
+        /**
+         * XHR Polling constructor.
+         *
+         * @param {Object} opts
+         * @api public
+         */
+        constructor(opts) {
+            super(opts);
             this.polling = false;
+            if (typeof location !== "undefined") {
+                const isSSL = "https:" === location.protocol;
+                let port = location.port;
+                // some user agents have empty `location.port`
+                if (!port) {
+                    port = isSSL ? "443" : "80";
+                }
+                this.xd =
+                    (typeof location !== "undefined" &&
+                        opts.hostname !== location.hostname) ||
+                        port !== opts.port;
+                this.xs = opts.secure !== isSSL;
+            }
+            /**
+             * XHR supports binary
+             */
+            const forceBase64 = opts && opts.forceBase64;
+            this.supportsBinary = hasXHR2 && !forceBase64;
         }
         /**
          * Transport name.
@@ -1415,7 +1341,7 @@ var app = (function () {
         poll() {
             this.polling = true;
             this.doPoll();
-            this.emit("poll");
+            this.emitReserved("poll");
         }
         /**
          * Overloads onData to detect payloads.
@@ -1430,7 +1356,7 @@ var app = (function () {
                 }
                 // if its a close packet, we close the ongoing requests
                 if ("close" === packet.type) {
-                    this.onClose();
+                    this.onClose({ description: "transport closed by the server" });
                     return false;
                 }
                 // otherwise bypass onData and handle the message
@@ -1442,7 +1368,7 @@ var app = (function () {
             if ("closed" !== this.readyState) {
                 // if we got data we're not polling
                 this.polling = false;
-                this.emit("pollComplete");
+                this.emitReserved("pollComplete");
                 if ("open" === this.readyState) {
                     this.poll();
                 }
@@ -1478,7 +1404,7 @@ var app = (function () {
             encodePayload(packets, data => {
                 this.doWrite(data, () => {
                     this.writable = true;
-                    this.emit("drain");
+                    this.emitReserved("drain");
                 });
             });
         }
@@ -1493,7 +1419,7 @@ var app = (function () {
             let port = "";
             // cache busting is forced
             if (false !== this.opts.timestampRequests) {
-                query[this.opts.timestampParam] = yeast_1();
+                query[this.opts.timestampParam] = yeast();
             }
             if (!this.supportsBinary && !query.sid) {
                 query.b64 = 1;
@@ -1504,7 +1430,7 @@ var app = (function () {
                     ("http" === schema && Number(this.opts.port) !== 80))) {
                 port = ":" + this.opts.port;
             }
-            const encodedQuery = parseqs.encode(query);
+            const encodedQuery = encode(query);
             const ipv6 = this.opts.hostname.indexOf(":") !== -1;
             return (schema +
                 "://" +
@@ -1512,47 +1438,6 @@ var app = (function () {
                 port +
                 this.opts.path +
                 (encodedQuery.length ? "?" + encodedQuery : ""));
-        }
-    }
-
-    /* global attachEvent */
-    /**
-     * Empty function
-     */
-    function empty() { }
-    const hasXHR2 = (function () {
-        const xhr = new XMLHttpRequest$1({
-            xdomain: false
-        });
-        return null != xhr.responseType;
-    })();
-    class XHR extends Polling {
-        /**
-         * XHR Polling constructor.
-         *
-         * @param {Object} opts
-         * @api public
-         */
-        constructor(opts) {
-            super(opts);
-            if (typeof location !== "undefined") {
-                const isSSL = "https:" === location.protocol;
-                let port = location.port;
-                // some user agents have empty `location.port`
-                if (!port) {
-                    port = isSSL ? "443" : "80";
-                }
-                this.xd =
-                    (typeof location !== "undefined" &&
-                        opts.hostname !== location.hostname) ||
-                        port !== opts.port;
-                this.xs = opts.secure !== isSSL;
-            }
-            /**
-             * XHR supports binary
-             */
-            const forceBase64 = opts && opts.forceBase64;
-            this.supportsBinary = hasXHR2 && !forceBase64;
         }
         /**
          * Creates a request.
@@ -1577,8 +1462,8 @@ var app = (function () {
                 data: data
             });
             req.on("success", fn);
-            req.on("error", err => {
-                this.onError("xhr post error", err);
+            req.on("error", (xhrStatus, context) => {
+                this.onError("xhr post error", xhrStatus, context);
             });
         }
         /**
@@ -1589,13 +1474,13 @@ var app = (function () {
         doPoll() {
             const req = this.request();
             req.on("data", this.onData.bind(this));
-            req.on("error", err => {
-                this.onError("xhr poll error", err);
+            req.on("error", (xhrStatus, context) => {
+                this.onError("xhr poll error", xhrStatus, context);
             });
             this.pollXhr = req;
         }
     }
-    class Request extends Emitter_1 {
+    class Request extends Emitter {
         /**
          * Request constructor
          *
@@ -1621,7 +1506,7 @@ var app = (function () {
             const opts = pick(this.opts, "agent", "pfx", "key", "passphrase", "cert", "ca", "ciphers", "rejectUnauthorized", "autoUnref");
             opts.xdomain = !!this.opts.xd;
             opts.xscheme = !!this.opts.xs;
-            const xhr = (this.xhr = new XMLHttpRequest$1(opts));
+            const xhr = (this.xhr = new XHR(opts));
             try {
                 xhr.open(this.method, this.uri, this.async);
                 try {
@@ -1683,30 +1568,12 @@ var app = (function () {
             }
         }
         /**
-         * Called upon successful response.
-         *
-         * @api private
-         */
-        onSuccess() {
-            this.emit("success");
-            this.cleanup();
-        }
-        /**
-         * Called if we have data.
-         *
-         * @api private
-         */
-        onData(data) {
-            this.emit("data", data);
-            this.onSuccess();
-        }
-        /**
          * Called upon error.
          *
          * @api private
          */
         onError(err) {
-            this.emit("error", err);
+            this.emitReserved("error", err, this.xhr);
             this.cleanup(true);
         }
         /**
@@ -1738,7 +1605,9 @@ var app = (function () {
         onLoad() {
             const data = this.xhr.responseText;
             if (data !== null) {
-                this.onData(data);
+                this.emitReserved("data", data);
+                this.emitReserved("success");
+                this.cleanup();
             }
         }
         /**
@@ -1764,7 +1633,7 @@ var app = (function () {
             attachEvent("onunload", unloadHandler);
         }
         else if (typeof addEventListener === "function") {
-            const terminationEvent = "onpagehide" in globalThis$1 ? "pagehide" : "unload";
+            const terminationEvent = "onpagehide" in globalThisShim ? "pagehide" : "unload";
             addEventListener(terminationEvent, unloadHandler, false);
         }
     }
@@ -1785,7 +1654,7 @@ var app = (function () {
             return (cb, setTimeoutFn) => setTimeoutFn(cb, 0);
         }
     })();
-    const WebSocket = globalThis$1.WebSocket || globalThis$1.MozWebSocket;
+    const WebSocket = globalThisShim.WebSocket || globalThisShim.MozWebSocket;
     const usingBrowserWebSocket = true;
     const defaultBinaryType = "arraybuffer";
 
@@ -1840,7 +1709,7 @@ var app = (function () {
                         : new WebSocket(uri, protocols, opts);
             }
             catch (err) {
-                return this.emit("error", err);
+                return this.emitReserved("error", err);
             }
             this.ws.binaryType = this.socket.binaryType || defaultBinaryType;
             this.addEventListeners();
@@ -1857,7 +1726,10 @@ var app = (function () {
                 }
                 this.onOpen();
             };
-            this.ws.onclose = this.onClose.bind(this);
+            this.ws.onclose = closeEvent => this.onClose({
+                description: "websocket connection closed",
+                context: closeEvent
+            });
             this.ws.onmessage = ev => this.onData(ev.data);
             this.ws.onerror = e => this.onError("websocket error", e);
         }
@@ -1893,7 +1765,7 @@ var app = (function () {
                         // defer to next tick to allow Socket to clear writeBuffer
                         nextTick(() => {
                             this.writable = true;
-                            this.emit("drain");
+                            this.emitReserved("drain");
                         }, this.setTimeoutFn);
                     }
                 });
@@ -1927,13 +1799,13 @@ var app = (function () {
             }
             // append timestamp to URI
             if (this.opts.timestampRequests) {
-                query[this.opts.timestampParam] = yeast_1();
+                query[this.opts.timestampParam] = yeast();
             }
             // communicate binary support capabilities
             if (!this.supportsBinary) {
                 query.b64 = 1;
             }
-            const encodedQuery = parseqs.encode(query);
+            const encodedQuery = encode(query);
             const ipv6 = this.opts.hostname.indexOf(":") !== -1;
             return (schema +
                 "://" +
@@ -1949,17 +1821,66 @@ var app = (function () {
          * @api public
          */
         check() {
-            return (!!WebSocket &&
-                !("__initialize" in WebSocket && this.name === WS.prototype.name));
+            return !!WebSocket;
         }
     }
 
     const transports = {
         websocket: WS,
-        polling: XHR
+        polling: Polling
     };
 
-    class Socket$1 extends Emitter_1 {
+    // imported from https://github.com/galkn/parseuri
+    /**
+     * Parses an URI
+     *
+     * @author Steven Levithan <stevenlevithan.com> (MIT license)
+     * @api private
+     */
+    const re = /^(?:(?![^:@]+:[^:@\/]*@)(http|https|ws|wss):\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?((?:[a-f0-9]{0,4}:){2,7}[a-f0-9]{0,4}|[^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/;
+    const parts = [
+        'source', 'protocol', 'authority', 'userInfo', 'user', 'password', 'host', 'port', 'relative', 'path', 'directory', 'file', 'query', 'anchor'
+    ];
+    function parse(str) {
+        const src = str, b = str.indexOf('['), e = str.indexOf(']');
+        if (b != -1 && e != -1) {
+            str = str.substring(0, b) + str.substring(b, e).replace(/:/g, ';') + str.substring(e, str.length);
+        }
+        let m = re.exec(str || ''), uri = {}, i = 14;
+        while (i--) {
+            uri[parts[i]] = m[i] || '';
+        }
+        if (b != -1 && e != -1) {
+            uri.source = src;
+            uri.host = uri.host.substring(1, uri.host.length - 1).replace(/;/g, ':');
+            uri.authority = uri.authority.replace('[', '').replace(']', '').replace(/;/g, ':');
+            uri.ipv6uri = true;
+        }
+        uri.pathNames = pathNames(uri, uri['path']);
+        uri.queryKey = queryKey(uri, uri['query']);
+        return uri;
+    }
+    function pathNames(obj, path) {
+        const regx = /\/{2,9}/g, names = path.replace(regx, "/").split("/");
+        if (path.slice(0, 1) == '/' || path.length === 0) {
+            names.splice(0, 1);
+        }
+        if (path.slice(-1) == '/') {
+            names.splice(names.length - 1, 1);
+        }
+        return names;
+    }
+    function queryKey(uri, query) {
+        const data = {};
+        query.replace(/(?:^|&)([^&=]*)=?([^&]*)/g, function ($0, $1, $2) {
+            if ($1) {
+                data[$1] = $2;
+            }
+        });
+        return data;
+    }
+
+    class Socket$1 extends Emitter {
         /**
          * Socket constructor.
          *
@@ -1974,7 +1895,7 @@ var app = (function () {
                 uri = null;
             }
             if (uri) {
-                uri = parseuri(uri);
+                uri = parse(uri);
                 opts.hostname = uri.host;
                 opts.secure = uri.protocol === "https" || uri.protocol === "wss";
                 opts.port = uri.port;
@@ -1982,7 +1903,7 @@ var app = (function () {
                     opts.query = uri.query;
             }
             else if (opts.host) {
-                opts.hostname = parseuri(opts.host).host;
+                opts.hostname = parse(opts.host).host;
             }
             installTimerFunctions(this, opts);
             this.secure =
@@ -2023,7 +1944,7 @@ var app = (function () {
             }, opts);
             this.opts.path = this.opts.path.replace(/\/$/, "") + "/";
             if (typeof this.opts.query === "string") {
-                this.opts.query = parseqs.decode(this.opts.query);
+                this.opts.query = decode(this.opts.query);
             }
             // set on handshake
             this.id = null;
@@ -2037,17 +1958,20 @@ var app = (function () {
                     // Firefox closes the connection when the "beforeunload" event is emitted but not Chrome. This event listener
                     // ensures every browser behaves the same (no "disconnect" event at the Socket.IO level when the page is
                     // closed/reloaded)
-                    addEventListener("beforeunload", () => {
+                    this.beforeunloadEventListener = () => {
                         if (this.transport) {
                             // silently close the transport
                             this.transport.removeAllListeners();
                             this.transport.close();
                         }
-                    }, false);
+                    };
+                    addEventListener("beforeunload", this.beforeunloadEventListener, false);
                 }
                 if (this.hostname !== "localhost") {
                     this.offlineEventListener = () => {
-                        this.onClose("transport close");
+                        this.onClose("transport close", {
+                            description: "network connection lost"
+                        });
                     };
                     addEventListener("offline", this.offlineEventListener, false);
                 }
@@ -2062,7 +1986,7 @@ var app = (function () {
          * @api private
          */
         createTransport(name) {
-            const query = clone(this.opts.query);
+            const query = Object.assign({}, this.opts.query);
             // append engine.io protocol identifier
             query.EIO = protocol$1;
             // transport name
@@ -2130,9 +2054,7 @@ var app = (function () {
                 .on("drain", this.onDrain.bind(this))
                 .on("packet", this.onPacket.bind(this))
                 .on("error", this.onError.bind(this))
-                .on("close", () => {
-                this.onClose("transport close");
-            });
+                .on("close", reason => this.onClose("transport close", reason));
         }
         /**
          * Probes a transport.
@@ -2294,6 +2216,7 @@ var app = (function () {
             this.upgrades = this.filterUpgrades(data.upgrades);
             this.pingInterval = data.pingInterval;
             this.pingTimeout = data.pingTimeout;
+            this.maxPayload = data.maxPayload;
             this.onOpen();
             // In case open handler closes socket
             if ("closed" === this.readyState)
@@ -2342,12 +2265,39 @@ var app = (function () {
                 this.transport.writable &&
                 !this.upgrading &&
                 this.writeBuffer.length) {
-                this.transport.send(this.writeBuffer);
+                const packets = this.getWritablePackets();
+                this.transport.send(packets);
                 // keep track of current length of writeBuffer
                 // splice writeBuffer and callbackBuffer on `drain`
-                this.prevBufferLen = this.writeBuffer.length;
+                this.prevBufferLen = packets.length;
                 this.emitReserved("flush");
             }
+        }
+        /**
+         * Ensure the encoded size of the writeBuffer is below the maxPayload value sent by the server (only for HTTP
+         * long-polling)
+         *
+         * @private
+         */
+        getWritablePackets() {
+            const shouldCheckPayloadSize = this.maxPayload &&
+                this.transport.name === "polling" &&
+                this.writeBuffer.length > 1;
+            if (!shouldCheckPayloadSize) {
+                return this.writeBuffer;
+            }
+            let payloadSize = 1; // first packet type
+            for (let i = 0; i < this.writeBuffer.length; i++) {
+                const data = this.writeBuffer[i].data;
+                if (data) {
+                    payloadSize += byteLength(data);
+                }
+                if (i > 0 && payloadSize > this.maxPayload) {
+                    return this.writeBuffer.slice(0, i);
+                }
+                payloadSize += 2; // separator + packet type
+            }
+            return this.writeBuffer;
         }
         /**
          * Sends a message.
@@ -2456,7 +2406,7 @@ var app = (function () {
          *
          * @api private
          */
-        onClose(reason, desc) {
+        onClose(reason, description) {
             if ("opening" === this.readyState ||
                 "open" === this.readyState ||
                 "closing" === this.readyState) {
@@ -2469,6 +2419,7 @@ var app = (function () {
                 // ignore further transport communication
                 this.transport.removeAllListeners();
                 if (typeof removeEventListener === "function") {
+                    removeEventListener("beforeunload", this.beforeunloadEventListener, false);
                     removeEventListener("offline", this.offlineEventListener, false);
                 }
                 // set ready state
@@ -2476,7 +2427,7 @@ var app = (function () {
                 // clear session id
                 this.id = null;
                 // emit close event
-                this.emitReserved("close", reason, desc);
+                this.emitReserved("close", reason, description);
                 // clean buffers after, so users can still
                 // grab the buffers on `close` event
                 this.writeBuffer = [];
@@ -2502,14 +2453,64 @@ var app = (function () {
         }
     }
     Socket$1.protocol = protocol$1;
-    function clone(obj) {
-        const o = {};
-        for (let i in obj) {
-            if (obj.hasOwnProperty(i)) {
-                o[i] = obj[i];
+
+    /**
+     * URL parser.
+     *
+     * @param uri - url
+     * @param path - the request path of the connection
+     * @param loc - An object meant to mimic window.location.
+     *        Defaults to window.location.
+     * @public
+     */
+    function url(uri, path = "", loc) {
+        let obj = uri;
+        // default to window.location
+        loc = loc || (typeof location !== "undefined" && location);
+        if (null == uri)
+            uri = loc.protocol + "//" + loc.host;
+        // relative path support
+        if (typeof uri === "string") {
+            if ("/" === uri.charAt(0)) {
+                if ("/" === uri.charAt(1)) {
+                    uri = loc.protocol + uri;
+                }
+                else {
+                    uri = loc.host + uri;
+                }
+            }
+            if (!/^(https?|wss?):\/\//.test(uri)) {
+                if ("undefined" !== typeof loc) {
+                    uri = loc.protocol + "//" + uri;
+                }
+                else {
+                    uri = "https://" + uri;
+                }
+            }
+            // parse
+            obj = parse(uri);
+        }
+        // make sure we treat `localhost:80` and `localhost` equally
+        if (!obj.port) {
+            if (/^(http|ws)$/.test(obj.protocol)) {
+                obj.port = "80";
+            }
+            else if (/^(http|ws)s$/.test(obj.protocol)) {
+                obj.port = "443";
             }
         }
-        return o;
+        obj.path = obj.path || "/";
+        const ipv6 = obj.host.indexOf(":") !== -1;
+        const host = ipv6 ? "[" + obj.host + "]" : obj.host;
+        // define unique id
+        obj.id = obj.protocol + "://" + host + ":" + obj.port + path;
+        // define href
+        obj.href =
+            obj.protocol +
+                "://" +
+                host +
+                (loc && loc.port === obj.port ? "" : ":" + obj.port);
+        return obj;
     }
 
     const withNativeArrayBuffer = typeof ArrayBuffer === "function";
@@ -2620,8 +2621,16 @@ var app = (function () {
     function _reconstructPacket(data, buffers) {
         if (!data)
             return data;
-        if (data && data._placeholder) {
-            return buffers[data.num]; // appropriate buffer (should be natural order anyway)
+        if (data && data._placeholder === true) {
+            const isIndexValid = typeof data.num === "number" &&
+                data.num >= 0 &&
+                data.num < buffers.length;
+            if (isIndexValid) {
+                return buffers[data.num]; // appropriate buffer (should be natural order anyway)
+            }
+            else {
+                throw new Error("illegal attachments");
+            }
         }
         else if (Array.isArray(data)) {
             for (let i = 0; i < data.length; i++) {
@@ -2658,6 +2667,14 @@ var app = (function () {
      * A socket.io Encoder instance
      */
     class Encoder {
+        /**
+         * Encoder constructor
+         *
+         * @param {function} replacer - custom replacer to pass down to JSON.parse
+         */
+        constructor(replacer) {
+            this.replacer = replacer;
+        }
         /**
          * Encode a packet as a single string if non-binary, or as a
          * buffer sequence, depending on packet type.
@@ -2698,7 +2715,7 @@ var app = (function () {
             }
             // json data
             if (null != obj.data) {
-                str += JSON.stringify(obj.data);
+                str += JSON.stringify(obj.data, this.replacer);
             }
             return str;
         }
@@ -2720,9 +2737,15 @@ var app = (function () {
      *
      * @return {Object} decoder
      */
-    class Decoder extends Emitter_1 {
-        constructor() {
+    class Decoder extends Emitter {
+        /**
+         * Decoder constructor
+         *
+         * @param {function} reviver - custom reviver to pass down to JSON.stringify
+         */
+        constructor(reviver) {
             super();
+            this.reviver = reviver;
         }
         /**
          * Decodes an encoded packet string into packet JSON.
@@ -2732,6 +2755,9 @@ var app = (function () {
         add(obj) {
             let packet;
             if (typeof obj === "string") {
+                if (this.reconstructor) {
+                    throw new Error("got plaintext data when reconstructing a packet");
+                }
                 packet = this.decodeString(obj);
                 if (packet.type === PacketType.BINARY_EVENT ||
                     packet.type === PacketType.BINARY_ACK) {
@@ -2823,7 +2849,7 @@ var app = (function () {
             }
             // look up json data
             if (str.charAt(++i)) {
-                const payload = tryParse(str.substr(i));
+                const payload = this.tryParse(str.substr(i));
                 if (Decoder.isPayloadValid(p.type, payload)) {
                     p.data = payload;
                 }
@@ -2832,6 +2858,14 @@ var app = (function () {
                 }
             }
             return p;
+        }
+        tryParse(str) {
+            try {
+                return JSON.parse(str, this.reviver);
+            }
+            catch (e) {
+                return false;
+            }
         }
         static isPayloadValid(type, payload) {
             switch (type) {
@@ -2856,14 +2890,6 @@ var app = (function () {
             if (this.reconstructor) {
                 this.reconstructor.finishedReconstruction();
             }
-        }
-    }
-    function tryParse(str) {
-        try {
-            return JSON.parse(str);
-        }
-        catch (e) {
-            return false;
         }
     }
     /**
@@ -2935,17 +2961,58 @@ var app = (function () {
         newListener: 1,
         removeListener: 1,
     });
-    class Socket extends Emitter_1 {
+    /**
+     * A Socket is the fundamental class for interacting with the server.
+     *
+     * A Socket belongs to a certain Namespace (by default /) and uses an underlying {@link Manager} to communicate.
+     *
+     * @example
+     * const socket = io();
+     *
+     * socket.on("connect", () => {
+     *   console.log("connected");
+     * });
+     *
+     * // send an event to the server
+     * socket.emit("foo", "bar");
+     *
+     * socket.on("foobar", () => {
+     *   // an event was received from the server
+     * });
+     *
+     * // upon disconnection
+     * socket.on("disconnect", (reason) => {
+     *   console.log(`disconnected due to ${reason}`);
+     * });
+     */
+    class Socket extends Emitter {
         /**
          * `Socket` constructor.
-         *
-         * @public
          */
         constructor(io, nsp, opts) {
             super();
+            /**
+             * Whether the socket is currently connected to the server.
+             *
+             * @example
+             * const socket = io();
+             *
+             * socket.on("connect", () => {
+             *   console.log(socket.connected); // true
+             * });
+             *
+             * socket.on("disconnect", () => {
+             *   console.log(socket.connected); // false
+             * });
+             */
             this.connected = false;
-            this.disconnected = true;
+            /**
+             * Buffer for packets received before the CONNECT packet
+             */
             this.receiveBuffer = [];
+            /**
+             * Buffer for packets that will be sent once the socket is connected
+             */
             this.sendBuffer = [];
             this.ids = 0;
             this.acks = {};
@@ -2957,6 +3024,23 @@ var app = (function () {
             }
             if (this.io._autoConnect)
                 this.open();
+        }
+        /**
+         * Whether the socket is currently disconnected
+         *
+         * @example
+         * const socket = io();
+         *
+         * socket.on("connect", () => {
+         *   console.log(socket.disconnected); // false
+         * });
+         *
+         * socket.on("disconnect", () => {
+         *   console.log(socket.disconnected); // true
+         * });
+         */
+        get disconnected() {
+            return !this.connected;
         }
         /**
          * Subscribe to open, close and packet events
@@ -2975,7 +3059,21 @@ var app = (function () {
             ];
         }
         /**
-         * Whether the Socket will try to reconnect when its Manager connects or reconnects
+         * Whether the Socket will try to reconnect when its Manager connects or reconnects.
+         *
+         * @example
+         * const socket = io();
+         *
+         * console.log(socket.active); // true
+         *
+         * socket.on("disconnect", (reason) => {
+         *   if (reason === "io server disconnect") {
+         *     // the disconnection was initiated by the server, you need to manually reconnect
+         *     console.log(socket.active); // false
+         *   }
+         *   // else the socket will automatically try to reconnect
+         *   console.log(socket.active); // true
+         * });
          */
         get active() {
             return !!this.subs;
@@ -2983,7 +3081,12 @@ var app = (function () {
         /**
          * "Opens" the socket.
          *
-         * @public
+         * @example
+         * const socket = io({
+         *   autoConnect: false
+         * });
+         *
+         * socket.connect();
          */
         connect() {
             if (this.connected)
@@ -2996,7 +3099,7 @@ var app = (function () {
             return this;
         }
         /**
-         * Alias for connect()
+         * Alias for {@link connect()}.
          */
         open() {
             return this.connect();
@@ -3004,8 +3107,17 @@ var app = (function () {
         /**
          * Sends a `message` event.
          *
+         * This method mimics the WebSocket.send() method.
+         *
+         * @see https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/send
+         *
+         * @example
+         * socket.send("hello");
+         *
+         * // this is equivalent to
+         * socket.emit("message", "hello");
+         *
          * @return self
-         * @public
          */
         send(...args) {
             args.unshift("message");
@@ -3016,12 +3128,22 @@ var app = (function () {
          * Override `emit`.
          * If the event is in `events`, it's emitted normally.
          *
+         * @example
+         * socket.emit("hello", "world");
+         *
+         * // all serializable datastructures are supported (no need to call JSON.stringify)
+         * socket.emit("hello", 1, "2", { 3: ["4"], 5: Uint8Array.from([6]) });
+         *
+         * // with an acknowledgement from the server
+         * socket.emit("hello", "world", (val) => {
+         *   // ...
+         * });
+         *
          * @return self
-         * @public
          */
         emit(ev, ...args) {
             if (RESERVED_EVENTS.hasOwnProperty(ev)) {
-                throw new Error('"' + ev + '" is a reserved event name');
+                throw new Error('"' + ev.toString() + '" is a reserved event name');
             }
             args.unshift(ev);
             const packet = {
@@ -3043,6 +3165,7 @@ var app = (function () {
             const discardPacket = this.flags.volatile && (!isTransportWritable || !this.connected);
             if (discardPacket) ;
             else if (this.connected) {
+                this.notifyOutgoingListeners(packet);
                 this.packet(packet);
             }
             else {
@@ -3116,13 +3239,13 @@ var app = (function () {
          * Called upon engine `close`.
          *
          * @param reason
+         * @param description
          * @private
          */
-        onclose(reason) {
+        onclose(reason, description) {
             this.connected = false;
-            this.disconnected = true;
             delete this.id;
-            this.emitReserved("disconnect", reason);
+            this.emitReserved("disconnect", reason, description);
         }
         /**
          * Called with socket packet.
@@ -3145,14 +3268,10 @@ var app = (function () {
                     }
                     break;
                 case PacketType.EVENT:
-                    this.onevent(packet);
-                    break;
                 case PacketType.BINARY_EVENT:
                     this.onevent(packet);
                     break;
                 case PacketType.ACK:
-                    this.onack(packet);
-                    break;
                 case PacketType.BINARY_ACK:
                     this.onack(packet);
                     break;
@@ -3236,7 +3355,6 @@ var app = (function () {
         onconnect(id) {
             this.id = id;
             this.connected = true;
-            this.disconnected = false;
             this.emitBuffered();
             this.emitReserved("connect");
         }
@@ -3248,7 +3366,10 @@ var app = (function () {
         emitBuffered() {
             this.receiveBuffer.forEach((args) => this.emitEvent(args));
             this.receiveBuffer = [];
-            this.sendBuffer.forEach((packet) => this.packet(packet));
+            this.sendBuffer.forEach((packet) => {
+                this.notifyOutgoingListeners(packet);
+                this.packet(packet);
+            });
             this.sendBuffer = [];
         }
         /**
@@ -3276,10 +3397,20 @@ var app = (function () {
             this.io["_destroy"](this);
         }
         /**
-         * Disconnects the socket manually.
+         * Disconnects the socket manually. In that case, the socket will not try to reconnect.
+         *
+         * If this is the last active Socket instance of the {@link Manager}, the low-level connection will be closed.
+         *
+         * @example
+         * const socket = io();
+         *
+         * socket.on("disconnect", (reason) => {
+         *   // console.log(reason); prints "io client disconnect"
+         * });
+         *
+         * socket.disconnect();
          *
          * @return self
-         * @public
          */
         disconnect() {
             if (this.connected) {
@@ -3294,10 +3425,9 @@ var app = (function () {
             return this;
         }
         /**
-         * Alias for disconnect()
+         * Alias for {@link disconnect()}.
          *
          * @return self
-         * @public
          */
         close() {
             return this.disconnect();
@@ -3305,9 +3435,11 @@ var app = (function () {
         /**
          * Sets the compress flag.
          *
+         * @example
+         * socket.compress(false).emit("hello");
+         *
          * @param compress - if `true`, compresses the sending data
          * @return self
-         * @public
          */
         compress(compress) {
             this.flags.compress = compress;
@@ -3317,8 +3449,10 @@ var app = (function () {
          * Sets a modifier for a subsequent event emission that the event message will be dropped when this socket is not
          * ready to send messages.
          *
+         * @example
+         * socket.volatile.emit("hello"); // the server may or may not receive it
+         *
          * @returns self
-         * @public
          */
         get volatile() {
             this.flags.volatile = true;
@@ -3328,16 +3462,14 @@ var app = (function () {
          * Sets a modifier for a subsequent event emission that the callback will be called with an error when the
          * given number of milliseconds have elapsed without an acknowledgement from the server:
          *
-         * ```
+         * @example
          * socket.timeout(5000).emit("my-event", (err) => {
          *   if (err) {
          *     // the server did not acknowledge the event in the given delay
          *   }
          * });
-         * ```
          *
          * @returns self
-         * @public
          */
         timeout(timeout) {
             this.flags.timeout = timeout;
@@ -3347,8 +3479,12 @@ var app = (function () {
          * Adds a listener that will be fired when any event is emitted. The event name is passed as the first argument to the
          * callback.
          *
+         * @example
+         * socket.onAny((event, ...args) => {
+         *   console.log(`got ${event}`);
+         * });
+         *
          * @param listener
-         * @public
          */
         onAny(listener) {
             this._anyListeners = this._anyListeners || [];
@@ -3359,8 +3495,12 @@ var app = (function () {
          * Adds a listener that will be fired when any event is emitted. The event name is passed as the first argument to the
          * callback. The listener is added to the beginning of the listeners array.
          *
+         * @example
+         * socket.prependAny((event, ...args) => {
+         *   console.log(`got event ${event}`);
+         * });
+         *
          * @param listener
-         * @public
          */
         prependAny(listener) {
             this._anyListeners = this._anyListeners || [];
@@ -3370,8 +3510,20 @@ var app = (function () {
         /**
          * Removes the listener that will be fired when any event is emitted.
          *
+         * @example
+         * const catchAllListener = (event, ...args) => {
+         *   console.log(`got event ${event}`);
+         * }
+         *
+         * socket.onAny(catchAllListener);
+         *
+         * // remove a specific listener
+         * socket.offAny(catchAllListener);
+         *
+         * // or remove all listeners
+         * socket.offAny();
+         *
          * @param listener
-         * @public
          */
         offAny(listener) {
             if (!this._anyListeners) {
@@ -3394,19 +3546,105 @@ var app = (function () {
         /**
          * Returns an array of listeners that are listening for any event that is specified. This array can be manipulated,
          * e.g. to remove listeners.
-         *
-         * @public
          */
         listenersAny() {
             return this._anyListeners || [];
         }
+        /**
+         * Adds a listener that will be fired when any event is emitted. The event name is passed as the first argument to the
+         * callback.
+         *
+         * Note: acknowledgements sent to the server are not included.
+         *
+         * @example
+         * socket.onAnyOutgoing((event, ...args) => {
+         *   console.log(`sent event ${event}`);
+         * });
+         *
+         * @param listener
+         */
+        onAnyOutgoing(listener) {
+            this._anyOutgoingListeners = this._anyOutgoingListeners || [];
+            this._anyOutgoingListeners.push(listener);
+            return this;
+        }
+        /**
+         * Adds a listener that will be fired when any event is emitted. The event name is passed as the first argument to the
+         * callback. The listener is added to the beginning of the listeners array.
+         *
+         * Note: acknowledgements sent to the server are not included.
+         *
+         * @example
+         * socket.prependAnyOutgoing((event, ...args) => {
+         *   console.log(`sent event ${event}`);
+         * });
+         *
+         * @param listener
+         */
+        prependAnyOutgoing(listener) {
+            this._anyOutgoingListeners = this._anyOutgoingListeners || [];
+            this._anyOutgoingListeners.unshift(listener);
+            return this;
+        }
+        /**
+         * Removes the listener that will be fired when any event is emitted.
+         *
+         * @example
+         * const catchAllListener = (event, ...args) => {
+         *   console.log(`sent event ${event}`);
+         * }
+         *
+         * socket.onAnyOutgoing(catchAllListener);
+         *
+         * // remove a specific listener
+         * socket.offAnyOutgoing(catchAllListener);
+         *
+         * // or remove all listeners
+         * socket.offAnyOutgoing();
+         *
+         * @param [listener] - the catch-all listener (optional)
+         */
+        offAnyOutgoing(listener) {
+            if (!this._anyOutgoingListeners) {
+                return this;
+            }
+            if (listener) {
+                const listeners = this._anyOutgoingListeners;
+                for (let i = 0; i < listeners.length; i++) {
+                    if (listener === listeners[i]) {
+                        listeners.splice(i, 1);
+                        return this;
+                    }
+                }
+            }
+            else {
+                this._anyOutgoingListeners = [];
+            }
+            return this;
+        }
+        /**
+         * Returns an array of listeners that are listening for any event that is specified. This array can be manipulated,
+         * e.g. to remove listeners.
+         */
+        listenersAnyOutgoing() {
+            return this._anyOutgoingListeners || [];
+        }
+        /**
+         * Notify the listeners for each packet sent
+         *
+         * @param packet
+         *
+         * @private
+         */
+        notifyOutgoingListeners(packet) {
+            if (this._anyOutgoingListeners && this._anyOutgoingListeners.length) {
+                const listeners = this._anyOutgoingListeners.slice();
+                for (const listener of listeners) {
+                    listener.apply(this, packet.data);
+                }
+            }
+        }
     }
-
-    /**
-     * Expose `Backoff`.
-     */
-
-    var backo2 = Backoff;
 
     /**
      * Initialize backoff timer with `opts`.
@@ -3419,74 +3657,63 @@ var app = (function () {
      * @param {Object} opts
      * @api public
      */
-
     function Backoff(opts) {
-      opts = opts || {};
-      this.ms = opts.min || 100;
-      this.max = opts.max || 10000;
-      this.factor = opts.factor || 2;
-      this.jitter = opts.jitter > 0 && opts.jitter <= 1 ? opts.jitter : 0;
-      this.attempts = 0;
+        opts = opts || {};
+        this.ms = opts.min || 100;
+        this.max = opts.max || 10000;
+        this.factor = opts.factor || 2;
+        this.jitter = opts.jitter > 0 && opts.jitter <= 1 ? opts.jitter : 0;
+        this.attempts = 0;
     }
-
     /**
      * Return the backoff duration.
      *
      * @return {Number}
      * @api public
      */
-
-    Backoff.prototype.duration = function(){
-      var ms = this.ms * Math.pow(this.factor, this.attempts++);
-      if (this.jitter) {
-        var rand =  Math.random();
-        var deviation = Math.floor(rand * this.jitter * ms);
-        ms = (Math.floor(rand * 10) & 1) == 0  ? ms - deviation : ms + deviation;
-      }
-      return Math.min(ms, this.max) | 0;
+    Backoff.prototype.duration = function () {
+        var ms = this.ms * Math.pow(this.factor, this.attempts++);
+        if (this.jitter) {
+            var rand = Math.random();
+            var deviation = Math.floor(rand * this.jitter * ms);
+            ms = (Math.floor(rand * 10) & 1) == 0 ? ms - deviation : ms + deviation;
+        }
+        return Math.min(ms, this.max) | 0;
     };
-
     /**
      * Reset the number of attempts.
      *
      * @api public
      */
-
-    Backoff.prototype.reset = function(){
-      this.attempts = 0;
+    Backoff.prototype.reset = function () {
+        this.attempts = 0;
     };
-
     /**
      * Set the minimum duration
      *
      * @api public
      */
-
-    Backoff.prototype.setMin = function(min){
-      this.ms = min;
+    Backoff.prototype.setMin = function (min) {
+        this.ms = min;
     };
-
     /**
      * Set the maximum duration
      *
      * @api public
      */
-
-    Backoff.prototype.setMax = function(max){
-      this.max = max;
+    Backoff.prototype.setMax = function (max) {
+        this.max = max;
     };
-
     /**
      * Set the jitter
      *
      * @api public
      */
-
-    Backoff.prototype.setJitter = function(jitter){
-      this.jitter = jitter;
+    Backoff.prototype.setJitter = function (jitter) {
+        this.jitter = jitter;
     };
 
-    class Manager extends Emitter_1 {
+    class Manager extends Emitter {
         constructor(uri, opts) {
             var _a;
             super();
@@ -3505,7 +3732,7 @@ var app = (function () {
             this.reconnectionDelay(opts.reconnectionDelay || 1000);
             this.reconnectionDelayMax(opts.reconnectionDelayMax || 5000);
             this.randomizationFactor((_a = opts.randomizationFactor) !== null && _a !== void 0 ? _a : 0.5);
-            this.backoff = new backo2({
+            this.backoff = new Backoff({
                 min: this.reconnectionDelay(),
                 max: this.reconnectionDelayMax(),
                 jitter: this.randomizationFactor(),
@@ -3671,7 +3898,12 @@ var app = (function () {
          * @private
          */
         ondata(data) {
-            this.decoder.add(data);
+            try {
+                this.decoder.add(data);
+            }
+            catch (e) {
+                this.onclose("parse error", e);
+            }
         }
         /**
          * Called when parser fully decodes a packet.
@@ -3679,7 +3911,10 @@ var app = (function () {
          * @private
          */
         ondecoded(packet) {
-            this.emitReserved("packet", packet);
+            // the nextTick call prevents an exception in a user-provided event listener from triggering a disconnection due to a "parse error"
+            nextTick(() => {
+                this.emitReserved("packet", packet);
+            }, this.setTimeoutFn);
         }
         /**
          * Called upon socket error.
@@ -3766,11 +4001,11 @@ var app = (function () {
          *
          * @private
          */
-        onclose(reason) {
+        onclose(reason, description) {
             this.cleanup();
             this.backoff.reset();
             this._readyState = "closed";
-            this.emitReserved("close", reason);
+            this.emitReserved("close", reason, description);
             if (this._reconnection && !this.skipReconnect) {
                 this.reconnect();
             }
@@ -3876,12 +4111,12 @@ var app = (function () {
 
     const page = writable('home');
     const loading = writable(false);
-    const socket = writable(lookup('http://localhost:5000'));
+    const socket = writable(lookup('bengomez.me'));
     const socketStatus = writable(0); //ON: 1, OFF: 0, ERROR: -1
 
     const currentUser = writable({});
 
-    /* src\components\Header.svelte generated by Svelte v3.47.0 */
+    /* src\components\Header.svelte generated by Svelte v3.55.1 */
     const file$h = "src\\components\\Header.svelte";
 
     // (53:8) {#if $currentUser._id}
@@ -4180,7 +4415,7 @@ var app = (function () {
     	}
     }
 
-    /* src\components\modal.svelte generated by Svelte v3.47.0 */
+    /* src\components\modal.svelte generated by Svelte v3.55.1 */
 
     const file$g = "src\\components\\modal.svelte";
 
@@ -4334,7 +4569,7 @@ var app = (function () {
     	}
     }
 
-    /* src\components\MorseDecoder.svelte generated by Svelte v3.47.0 */
+    /* src\components\MorseDecoder.svelte generated by Svelte v3.55.1 */
 
     const file$f = "src\\components\\MorseDecoder.svelte";
 
@@ -5001,7 +5236,7 @@ var app = (function () {
       return `rgb(${r},${g},${b})`
     };
 
-    /* src\components\Chat\Message.svelte generated by Svelte v3.47.0 */
+    /* src\components\Chat\Message.svelte generated by Svelte v3.55.1 */
     const file$e = "src\\components\\Chat\\Message.svelte";
 
     // (52:0) {:else}
@@ -5437,7 +5672,7 @@ var app = (function () {
     	}
     }
 
-    /* src\components\Footer.svelte generated by Svelte v3.47.0 */
+    /* src\components\Footer.svelte generated by Svelte v3.55.1 */
 
     const file$d = "src\\components\\Footer.svelte";
 
@@ -5563,7 +5798,7 @@ var app = (function () {
     	}
     }
 
-    /* src\components\Home.svelte generated by Svelte v3.47.0 */
+    /* src\components\Home.svelte generated by Svelte v3.55.1 */
 
     const { console: console_1$9 } = globals;
     const file$c = "src\\components\\Home.svelte";
@@ -5952,7 +6187,7 @@ var app = (function () {
     	}
     }
 
-    /* src\components\Login.svelte generated by Svelte v3.47.0 */
+    /* src\components\Login.svelte generated by Svelte v3.55.1 */
 
     const { console: console_1$8 } = globals;
     const file$b = "src\\components\\Login.svelte";
@@ -6649,7 +6884,7 @@ var app = (function () {
     	}
     }
 
-    /* src\components\Profile.svelte generated by Svelte v3.47.0 */
+    /* src\components\Profile.svelte generated by Svelte v3.55.1 */
 
     const { Object: Object_1, console: console_1$7 } = globals;
     const file$a = "src\\components\\Profile.svelte";
@@ -7078,7 +7313,7 @@ var app = (function () {
 
     const currentChatroom = writable({});
 
-    /* src\components\Chat\UserSidebar.svelte generated by Svelte v3.47.0 */
+    /* src\components\Chat\UserSidebar.svelte generated by Svelte v3.55.1 */
 
     const { console: console_1$6 } = globals;
     const file$9 = "src\\components\\Chat\\UserSidebar.svelte";
@@ -8178,7 +8413,7 @@ var app = (function () {
     	}
     }
 
-    /* src\components\Loading.svelte generated by Svelte v3.47.0 */
+    /* src\components\Loading.svelte generated by Svelte v3.55.1 */
 
     const file$8 = "src\\components\\Loading.svelte";
 
@@ -8267,6 +8502,13 @@ var app = (function () {
     	let { $$slots: slots = {}, $$scope } = $$props;
     	validate_slots('Loading', slots, []);
     	let { status } = $$props;
+
+    	$$self.$$.on_mount.push(function () {
+    		if (status === undefined && !('status' in $$props || $$self.$$.bound[$$self.$$.props['status']])) {
+    			console.warn("<Loading> was created without expected prop 'status'");
+    		}
+    	});
+
     	const writable_props = ['status'];
 
     	Object.keys($$props).forEach(key => {
@@ -8301,13 +8543,6 @@ var app = (function () {
     			options,
     			id: create_fragment$8.name
     		});
-
-    		const { ctx } = this.$$;
-    		const props = options.props || {};
-
-    		if (/*status*/ ctx[0] === undefined && !('status' in props)) {
-    			console.warn("<Loading> was created without expected prop 'status'");
-    		}
     	}
 
     	get status() {
@@ -8319,7 +8554,7 @@ var app = (function () {
     	}
     }
 
-    /* src\components\DeleteButton.svelte generated by Svelte v3.47.0 */
+    /* src\components\DeleteButton.svelte generated by Svelte v3.55.1 */
 
     const { console: console_1$5 } = globals;
     const file$7 = "src\\components\\DeleteButton.svelte";
@@ -8488,7 +8723,7 @@ var app = (function () {
     	}
     }
 
-    /* src\components\Chat\RGB.svelte generated by Svelte v3.47.0 */
+    /* src\components\Chat\RGB.svelte generated by Svelte v3.55.1 */
 
     const { console: console_1$4 } = globals;
     const file$6 = "src\\components\\Chat\\RGB.svelte";
@@ -8890,7 +9125,7 @@ var app = (function () {
     	}
     }
 
-    /* src\components\Switch.svelte generated by Svelte v3.47.0 */
+    /* src\components\Switch.svelte generated by Svelte v3.55.1 */
 
     const file$5 = "src\\components\\Switch.svelte";
 
@@ -9001,7 +9236,7 @@ var app = (function () {
     	}
     }
 
-    /* src\components\Chat\Keyboard.svelte generated by Svelte v3.47.0 */
+    /* src\components\Chat\Keyboard.svelte generated by Svelte v3.55.1 */
 
     const { console: console_1$3 } = globals;
     const file$4 = "src\\components\\Chat\\Keyboard.svelte";
@@ -9310,7 +9545,7 @@ var app = (function () {
     	}
     }
 
-    /* src\components\Chat\Gamepad.svelte generated by Svelte v3.47.0 */
+    /* src\components\Chat\Gamepad.svelte generated by Svelte v3.55.1 */
 
     const { console: console_1$2 } = globals;
     const file$3 = "src\\components\\Chat\\Gamepad.svelte";
@@ -9629,7 +9864,7 @@ var app = (function () {
     				if_block = null;
     			}
 
-    			if (dirty & /*buttonMap*/ 1) {
+    			if (!current || dirty & /*buttonMap*/ 1) {
     				toggle_class(button0, "on", /*buttonMap*/ ctx[0].lb);
     			}
 
@@ -9637,19 +9872,19 @@ var app = (function () {
     				set_style(div1, "height", /*buttonMap*/ ctx[0].lt * 100 + "%");
     			}
 
-    			if (dirty & /*buttonMap*/ 1) {
+    			if (!current || dirty & /*buttonMap*/ 1) {
     				toggle_class(button1, "on", /*buttonMap*/ ctx[0].dd);
     			}
 
-    			if (dirty & /*buttonMap*/ 1) {
+    			if (!current || dirty & /*buttonMap*/ 1) {
     				toggle_class(button2, "on", /*buttonMap*/ ctx[0].dr);
     			}
 
-    			if (dirty & /*buttonMap*/ 1) {
+    			if (!current || dirty & /*buttonMap*/ 1) {
     				toggle_class(button3, "on", /*buttonMap*/ ctx[0].dl);
     			}
 
-    			if (dirty & /*buttonMap*/ 1) {
+    			if (!current || dirty & /*buttonMap*/ 1) {
     				toggle_class(button4, "on", /*buttonMap*/ ctx[0].du);
     			}
 
@@ -9657,7 +9892,7 @@ var app = (function () {
     				set_style(div5, "transform", /*stickl*/ ctx[4]());
     			}
 
-    			if (dirty & /*buttonMap*/ 1) {
+    			if (!current || dirty & /*buttonMap*/ 1) {
     				toggle_class(div5, "on", /*buttonMap*/ ctx[0].lstick);
     			}
 
@@ -9665,27 +9900,27 @@ var app = (function () {
     				set_style(div8, "transform", /*stickr*/ ctx[3]());
     			}
 
-    			if (dirty & /*buttonMap*/ 1) {
+    			if (!current || dirty & /*buttonMap*/ 1) {
     				toggle_class(div8, "on", /*buttonMap*/ ctx[0].rstick);
     			}
 
-    			if (dirty & /*buttonMap*/ 1) {
+    			if (!current || dirty & /*buttonMap*/ 1) {
     				toggle_class(button5, "on", /*buttonMap*/ ctx[0].a);
     			}
 
-    			if (dirty & /*buttonMap*/ 1) {
+    			if (!current || dirty & /*buttonMap*/ 1) {
     				toggle_class(button6, "on", /*buttonMap*/ ctx[0].b);
     			}
 
-    			if (dirty & /*buttonMap*/ 1) {
+    			if (!current || dirty & /*buttonMap*/ 1) {
     				toggle_class(button7, "on", /*buttonMap*/ ctx[0].x);
     			}
 
-    			if (dirty & /*buttonMap*/ 1) {
+    			if (!current || dirty & /*buttonMap*/ 1) {
     				toggle_class(button8, "on", /*buttonMap*/ ctx[0].y);
     			}
 
-    			if (dirty & /*buttonMap*/ 1) {
+    			if (!current || dirty & /*buttonMap*/ 1) {
     				toggle_class(button9, "on", /*buttonMap*/ ctx[0].rb);
     			}
 
@@ -9946,7 +10181,7 @@ var app = (function () {
     	}
     }
 
-    /* src\components\Chat\Log.svelte generated by Svelte v3.47.0 */
+    /* src\components\Chat\Log.svelte generated by Svelte v3.55.1 */
 
     const { console: console_1$1 } = globals;
     const file$2 = "src\\components\\Chat\\Log.svelte";
@@ -11484,7 +11719,7 @@ var app = (function () {
     	}
     }
 
-    /* src\components\Chat\Chatroom.svelte generated by Svelte v3.47.0 */
+    /* src\components\Chat\Chatroom.svelte generated by Svelte v3.55.1 */
 
     const file$1 = "src\\components\\Chat\\Chatroom.svelte";
 
@@ -11702,7 +11937,7 @@ var app = (function () {
     	}
     }
 
-    /* src\App.svelte generated by Svelte v3.47.0 */
+    /* src\App.svelte generated by Svelte v3.55.1 */
 
     const { console: console_1 } = globals;
     const file = "src\\App.svelte";
@@ -11805,8 +12040,8 @@ var app = (function () {
     			t1 = space();
     			button = element("button");
     			button.textContent = "Go Home";
-    			add_location(h1, file, 64, 6, 1790);
-    			add_location(button, file, 65, 6, 1820);
+    			add_location(h1, file, 64, 6, 1778);
+    			add_location(button, file, 65, 6, 1808);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, h1, anchor);
@@ -12090,8 +12325,8 @@ var app = (function () {
     			div = element("div");
     			if_block1.c();
     			attr_dev(div, "class", "container svelte-3nzbdt");
-    			add_location(div, file, 52, 2, 1474);
-    			add_location(main, file, 46, 0, 1388);
+    			add_location(div, file, 52, 2, 1462);
+    			add_location(main, file, 46, 0, 1376);
     		},
     		l: function claim(nodes) {
     			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
@@ -12197,7 +12432,7 @@ var app = (function () {
     	//Socket.io
     	$socket.on('connect', () => {
     		set_store_value(socketStatus, $socketStatus = 1, $socketStatus);
-    		console.log(`%cConnected: ${$socket.id} | ${socket}`, 'background-color:rgb(63, 153, 82); padding: 2px 15px; border-radius: 10px;font-weight: bold;');
+    		console.log(`%cConnected: ${$socket.id}`, 'background-color:rgb(63, 153, 82); padding: 2px 15px; border-radius: 10px;font-weight: bold;');
     	});
 
     	$socket.on('disconnect', () => {
