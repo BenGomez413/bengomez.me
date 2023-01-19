@@ -3,7 +3,6 @@ require('dotenv').config()
 const express = require('express')
 const app = express()
 const PORT = process.argv[2] || process.env.PORT || 8080
-const COR_ORIGIN = process.env.COR_ORIGIN || "http://localhost"
 const { Server } = require('socket.io')
 const http = require('http')
 const server = http.createServer(app)
@@ -15,8 +14,7 @@ app.use(express.static(path.join(__dirname, 'frontend/public')))
 //Socket io server
 const io = new Server(server, {
   cors: {
-    origin: COR_ORIGIN,
-    allowedHeaders: ['my-custom-header'],
+    origin: '*',
     credentials: true,
   },
 })
