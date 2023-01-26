@@ -47,6 +47,9 @@ body {
 
 
 /* Big List */
+.big-list {
+  margin-bottom: 3rem;
+}
 .big-list h1 {
   color: #3A7BDB;
   font-family: Open Sans;
