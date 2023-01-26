@@ -11,6 +11,9 @@ const server = http.createServer(app)
 const path = require('path')
 app.use(express.static(path.join(__dirname, 'frontend/public')))
 
+//Resume Route
+app.use('/resume', express.static(path.join(__dirname, 'frontend/public/projects/Resume')))
+
 //Socket io server
 const io = new Server(server, {
   cors: {
