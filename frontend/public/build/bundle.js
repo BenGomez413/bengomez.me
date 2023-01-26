@@ -4111,7 +4111,10 @@ var app = (function () {
 
     const page = writable('home');
     const loading = writable(false);
-    const socket = writable(lookup('http://localhost:5000'));
+
+    //export const socket = writable(io('http://localhost:5000'))
+    const socket = writable(lookup('bengomez.me'));
+
     const socketStatus = writable(0); //ON: 1, OFF: 0, ERROR: -1
 
     const currentUser = writable({});
