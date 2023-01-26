@@ -7347,7 +7347,7 @@ var app = (function () {
     	return child_ctx;
     }
 
-    // (136:6) {#if $currentUser.ownedChatrooms && $currentUser.ownedChatrooms.length > 0}
+    // (137:6) {#if $currentUser.ownedChatrooms && $currentUser.ownedChatrooms.length > 0}
     function create_if_block_3$2(ctx) {
     	let each_1_anchor;
     	let each_value_3 = /*$currentUser*/ ctx[1].ownedChatrooms;
@@ -7408,14 +7408,14 @@ var app = (function () {
     		block,
     		id: create_if_block_3$2.name,
     		type: "if",
-    		source: "(136:6) {#if $currentUser.ownedChatrooms && $currentUser.ownedChatrooms.length > 0}",
+    		source: "(137:6) {#if $currentUser.ownedChatrooms && $currentUser.ownedChatrooms.length > 0}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (137:8) {#each $currentUser.ownedChatrooms as room}
+    // (138:8) {#each $currentUser.ownedChatrooms as room}
     function create_each_block_3(ctx) {
     	let button;
     	let t0_value = /*room*/ ctx[12].name + "";
@@ -7436,11 +7436,11 @@ var app = (function () {
     			t1 = space();
     			i = element("i");
     			t2 = space();
-    			attr_dev(i, "class", i_class_value = "" + (null_to_empty(/*setIcon*/ ctx[3](/*room*/ ctx[12].ownerIcon)) + " svelte-lrnn82"));
-    			add_location(i, file$9, 143, 12, 4115);
-    			attr_dev(button, "class", button_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === /*room*/ ctx[12]._id && 'selected') + " svelte-lrnn82");
+    			attr_dev(i, "class", i_class_value = "" + (null_to_empty(/*setIcon*/ ctx[3](/*room*/ ctx[12].ownerIcon)) + " svelte-8kbezj"));
+    			add_location(i, file$9, 144, 12, 4156);
+    			attr_dev(button, "class", button_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === /*room*/ ctx[12]._id && 'selected') + " svelte-8kbezj");
     			attr_dev(button, "id", button_id_value = /*room*/ ctx[12]._id);
-    			add_location(button, file$9, 137, 10, 3920);
+    			add_location(button, file$9, 138, 10, 3961);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, button, anchor);
@@ -7457,11 +7457,11 @@ var app = (function () {
     		p: function update(ctx, dirty) {
     			if (dirty & /*$currentUser*/ 2 && t0_value !== (t0_value = /*room*/ ctx[12].name + "")) set_data_dev(t0, t0_value);
 
-    			if (dirty & /*$currentUser*/ 2 && i_class_value !== (i_class_value = "" + (null_to_empty(/*setIcon*/ ctx[3](/*room*/ ctx[12].ownerIcon)) + " svelte-lrnn82"))) {
+    			if (dirty & /*$currentUser*/ 2 && i_class_value !== (i_class_value = "" + (null_to_empty(/*setIcon*/ ctx[3](/*room*/ ctx[12].ownerIcon)) + " svelte-8kbezj"))) {
     				attr_dev(i, "class", i_class_value);
     			}
 
-    			if (dirty & /*$currentChatroom, $currentUser*/ 3 && button_class_value !== (button_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === /*room*/ ctx[12]._id && 'selected') + " svelte-lrnn82")) {
+    			if (dirty & /*$currentChatroom, $currentUser*/ 3 && button_class_value !== (button_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === /*room*/ ctx[12]._id && 'selected') + " svelte-8kbezj")) {
     				attr_dev(button, "class", button_class_value);
     			}
 
@@ -7480,14 +7480,14 @@ var app = (function () {
     		block,
     		id: create_each_block_3.name,
     		type: "each",
-    		source: "(137:8) {#each $currentUser.ownedChatrooms as room}",
+    		source: "(138:8) {#each $currentUser.ownedChatrooms as room}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (149:6) {#if $currentUser.joinedChatrooms && $currentUser.joinedChatrooms.length > 0}
+    // (150:6) {#if $currentUser.joinedChatrooms && $currentUser.joinedChatrooms.length > 0}
     function create_if_block_2$2(ctx) {
     	let each_1_anchor;
     	let each_value_2 = /*$currentUser*/ ctx[1].joinedChatrooms;
@@ -7548,14 +7548,14 @@ var app = (function () {
     		block,
     		id: create_if_block_2$2.name,
     		type: "if",
-    		source: "(149:6) {#if $currentUser.joinedChatrooms && $currentUser.joinedChatrooms.length > 0}",
+    		source: "(150:6) {#if $currentUser.joinedChatrooms && $currentUser.joinedChatrooms.length > 0}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (150:8) {#each $currentUser.joinedChatrooms as room}
+    // (151:8) {#each $currentUser.joinedChatrooms as room}
     function create_each_block_2(ctx) {
     	let button;
     	let t0_value = /*room*/ ctx[12].name + "";
@@ -7576,11 +7576,11 @@ var app = (function () {
     			t1 = space();
     			i = element("i");
     			t2 = space();
-    			attr_dev(i, "class", i_class_value = "" + (null_to_empty(/*setIcon*/ ctx[3](/*room*/ ctx[12].ownerIcon)) + " svelte-lrnn82"));
-    			add_location(i, file$9, 156, 12, 4551);
-    			attr_dev(button, "class", button_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === /*room*/ ctx[12]._id && 'selected') + " svelte-lrnn82");
+    			attr_dev(i, "class", i_class_value = "" + (null_to_empty(/*setIcon*/ ctx[3](/*room*/ ctx[12].ownerIcon)) + " svelte-8kbezj"));
+    			add_location(i, file$9, 157, 12, 4592);
+    			attr_dev(button, "class", button_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === /*room*/ ctx[12]._id && 'selected') + " svelte-8kbezj");
     			attr_dev(button, "id", button_id_value = /*room*/ ctx[12]._id);
-    			add_location(button, file$9, 150, 10, 4356);
+    			add_location(button, file$9, 151, 10, 4397);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, button, anchor);
@@ -7597,11 +7597,11 @@ var app = (function () {
     		p: function update(ctx, dirty) {
     			if (dirty & /*$currentUser*/ 2 && t0_value !== (t0_value = /*room*/ ctx[12].name + "")) set_data_dev(t0, t0_value);
 
-    			if (dirty & /*$currentUser*/ 2 && i_class_value !== (i_class_value = "" + (null_to_empty(/*setIcon*/ ctx[3](/*room*/ ctx[12].ownerIcon)) + " svelte-lrnn82"))) {
+    			if (dirty & /*$currentUser*/ 2 && i_class_value !== (i_class_value = "" + (null_to_empty(/*setIcon*/ ctx[3](/*room*/ ctx[12].ownerIcon)) + " svelte-8kbezj"))) {
     				attr_dev(i, "class", i_class_value);
     			}
 
-    			if (dirty & /*$currentChatroom, $currentUser*/ 3 && button_class_value !== (button_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === /*room*/ ctx[12]._id && 'selected') + " svelte-lrnn82")) {
+    			if (dirty & /*$currentChatroom, $currentUser*/ 3 && button_class_value !== (button_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === /*room*/ ctx[12]._id && 'selected') + " svelte-8kbezj")) {
     				attr_dev(button, "class", button_class_value);
     			}
 
@@ -7620,14 +7620,14 @@ var app = (function () {
     		block,
     		id: create_each_block_2.name,
     		type: "each",
-    		source: "(150:8) {#each $currentUser.joinedChatrooms as room}",
+    		source: "(151:8) {#each $currentUser.joinedChatrooms as room}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (197:6) {#if $currentUser.ownedChatrooms && $currentUser.ownedChatrooms.length > 0}
+    // (199:6) {#if $currentUser.ownedChatrooms && $currentUser.ownedChatrooms.length > 0}
     function create_if_block_1$2(ctx) {
     	let each_1_anchor;
     	let each_value_1 = /*$currentUser*/ ctx[1].ownedChatrooms;
@@ -7688,14 +7688,14 @@ var app = (function () {
     		block,
     		id: create_if_block_1$2.name,
     		type: "if",
-    		source: "(197:6) {#if $currentUser.ownedChatrooms && $currentUser.ownedChatrooms.length > 0}",
+    		source: "(199:6) {#if $currentUser.ownedChatrooms && $currentUser.ownedChatrooms.length > 0}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (198:8) {#each $currentUser.ownedChatrooms as room}
+    // (200:8) {#each $currentUser.ownedChatrooms as room}
     function create_each_block_1$1(ctx) {
     	let button;
     	let t0_value = /*room*/ ctx[12].name + "";
@@ -7716,11 +7716,11 @@ var app = (function () {
     			t1 = space();
     			i = element("i");
     			t2 = space();
-    			attr_dev(i, "class", i_class_value = "" + (null_to_empty(/*setIcon*/ ctx[3](/*room*/ ctx[12].ownerIcon)) + " svelte-lrnn82"));
-    			add_location(i, file$9, 204, 12, 5966);
-    			attr_dev(button, "class", button_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === /*room*/ ctx[12]._id && 'selected') + " svelte-lrnn82");
+    			attr_dev(i, "class", i_class_value = "" + (null_to_empty(/*setIcon*/ ctx[3](/*room*/ ctx[12].ownerIcon)) + " svelte-8kbezj"));
+    			add_location(i, file$9, 206, 12, 6031);
+    			attr_dev(button, "class", button_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === /*room*/ ctx[12]._id && 'selected') + " svelte-8kbezj");
     			attr_dev(button, "id", button_id_value = /*room*/ ctx[12]._id);
-    			add_location(button, file$9, 198, 10, 5771);
+    			add_location(button, file$9, 200, 10, 5836);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, button, anchor);
@@ -7737,11 +7737,11 @@ var app = (function () {
     		p: function update(ctx, dirty) {
     			if (dirty & /*$currentUser*/ 2 && t0_value !== (t0_value = /*room*/ ctx[12].name + "")) set_data_dev(t0, t0_value);
 
-    			if (dirty & /*$currentUser*/ 2 && i_class_value !== (i_class_value = "" + (null_to_empty(/*setIcon*/ ctx[3](/*room*/ ctx[12].ownerIcon)) + " svelte-lrnn82"))) {
+    			if (dirty & /*$currentUser*/ 2 && i_class_value !== (i_class_value = "" + (null_to_empty(/*setIcon*/ ctx[3](/*room*/ ctx[12].ownerIcon)) + " svelte-8kbezj"))) {
     				attr_dev(i, "class", i_class_value);
     			}
 
-    			if (dirty & /*$currentChatroom, $currentUser*/ 3 && button_class_value !== (button_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === /*room*/ ctx[12]._id && 'selected') + " svelte-lrnn82")) {
+    			if (dirty & /*$currentChatroom, $currentUser*/ 3 && button_class_value !== (button_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === /*room*/ ctx[12]._id && 'selected') + " svelte-8kbezj")) {
     				attr_dev(button, "class", button_class_value);
     			}
 
@@ -7760,14 +7760,14 @@ var app = (function () {
     		block,
     		id: create_each_block_1$1.name,
     		type: "each",
-    		source: "(198:8) {#each $currentUser.ownedChatrooms as room}",
+    		source: "(200:8) {#each $currentUser.ownedChatrooms as room}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (210:6) {#if $currentUser.joinedChatrooms && $currentUser.joinedChatrooms.length > 0}
+    // (212:6) {#if $currentUser.joinedChatrooms && $currentUser.joinedChatrooms.length > 0}
     function create_if_block$5(ctx) {
     	let each_1_anchor;
     	let each_value = /*$currentUser*/ ctx[1].joinedChatrooms;
@@ -7828,14 +7828,14 @@ var app = (function () {
     		block,
     		id: create_if_block$5.name,
     		type: "if",
-    		source: "(210:6) {#if $currentUser.joinedChatrooms && $currentUser.joinedChatrooms.length > 0}",
+    		source: "(212:6) {#if $currentUser.joinedChatrooms && $currentUser.joinedChatrooms.length > 0}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (211:8) {#each $currentUser.joinedChatrooms as room}
+    // (213:8) {#each $currentUser.joinedChatrooms as room}
     function create_each_block$2(ctx) {
     	let button;
     	let t0_value = /*room*/ ctx[12].name + "";
@@ -7856,11 +7856,11 @@ var app = (function () {
     			t1 = space();
     			i = element("i");
     			t2 = space();
-    			attr_dev(i, "class", i_class_value = "" + (null_to_empty(/*setIcon*/ ctx[3](/*room*/ ctx[12].ownerIcon)) + " svelte-lrnn82"));
-    			add_location(i, file$9, 217, 12, 6402);
-    			attr_dev(button, "class", button_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === /*room*/ ctx[12]._id && 'selected') + " svelte-lrnn82");
+    			attr_dev(i, "class", i_class_value = "" + (null_to_empty(/*setIcon*/ ctx[3](/*room*/ ctx[12].ownerIcon)) + " svelte-8kbezj"));
+    			add_location(i, file$9, 219, 12, 6467);
+    			attr_dev(button, "class", button_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === /*room*/ ctx[12]._id && 'selected') + " svelte-8kbezj");
     			attr_dev(button, "id", button_id_value = /*room*/ ctx[12]._id);
-    			add_location(button, file$9, 211, 10, 6207);
+    			add_location(button, file$9, 213, 10, 6272);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, button, anchor);
@@ -7877,11 +7877,11 @@ var app = (function () {
     		p: function update(ctx, dirty) {
     			if (dirty & /*$currentUser*/ 2 && t0_value !== (t0_value = /*room*/ ctx[12].name + "")) set_data_dev(t0, t0_value);
 
-    			if (dirty & /*$currentUser*/ 2 && i_class_value !== (i_class_value = "" + (null_to_empty(/*setIcon*/ ctx[3](/*room*/ ctx[12].ownerIcon)) + " svelte-lrnn82"))) {
+    			if (dirty & /*$currentUser*/ 2 && i_class_value !== (i_class_value = "" + (null_to_empty(/*setIcon*/ ctx[3](/*room*/ ctx[12].ownerIcon)) + " svelte-8kbezj"))) {
     				attr_dev(i, "class", i_class_value);
     			}
 
-    			if (dirty & /*$currentChatroom, $currentUser*/ 3 && button_class_value !== (button_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === /*room*/ ctx[12]._id && 'selected') + " svelte-lrnn82")) {
+    			if (dirty & /*$currentChatroom, $currentUser*/ 3 && button_class_value !== (button_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === /*room*/ ctx[12]._id && 'selected') + " svelte-8kbezj")) {
     				attr_dev(button, "class", button_class_value);
     			}
 
@@ -7900,7 +7900,7 @@ var app = (function () {
     		block,
     		id: create_each_block$2.name,
     		type: "each",
-    		source: "(211:8) {#each $currentUser.joinedChatrooms as room}",
+    		source: "(213:8) {#each $currentUser.joinedChatrooms as room}",
     		ctx
     	});
 
@@ -8012,67 +8012,67 @@ var app = (function () {
     			if (if_block2) if_block2.c();
     			t21 = space();
     			if (if_block3) if_block3.c();
-    			attr_dev(span, "class", "svelte-lrnn82");
-    			add_location(span, file$9, 115, 4, 3235);
+    			attr_dev(span, "class", "svelte-8kbezj");
+    			add_location(span, file$9, 116, 4, 3258);
     			set_style(h20, "background-color", /*$currentUser*/ ctx[1].color);
     			set_style(h20, "color", /*$currentUser*/ ctx[1].text);
-    			attr_dev(h20, "class", "svelte-lrnn82");
+    			attr_dev(h20, "class", "svelte-8kbezj");
     			add_location(h20, file$9, 110, 2, 3070);
     			attr_dev(input0, "name", "newRoom");
     			attr_dev(input0, "type", "text");
     			input0.required = true;
     			attr_dev(input0, "placeholder", "Create Room...");
-    			attr_dev(input0, "class", "svelte-lrnn82");
-    			add_location(input0, file$9, 121, 6, 3395);
-    			attr_dev(button0, "class", "add-room-btn svelte-lrnn82");
-    			add_location(button0, file$9, 122, 6, 3477);
-    			attr_dev(form0, "class", "add-room svelte-lrnn82");
-    			add_location(form0, file$9, 120, 4, 3341);
-    			attr_dev(i0, "class", "fa-solid fa-earth-americas svelte-lrnn82");
-    			add_location(i0, file$9, 132, 8, 3713);
+    			attr_dev(input0, "class", "svelte-8kbezj");
+    			add_location(input0, file$9, 122, 6, 3436);
+    			attr_dev(button0, "class", "add-room-btn svelte-8kbezj");
+    			add_location(button0, file$9, 123, 6, 3518);
+    			attr_dev(form0, "class", "add-room svelte-8kbezj");
+    			add_location(form0, file$9, 121, 4, 3382);
+    			attr_dev(i0, "class", "fa-solid fa-earth-americas svelte-8kbezj");
+    			add_location(i0, file$9, 133, 8, 3754);
     			attr_dev(button1, "id", "GLOBAL");
-    			attr_dev(button1, "class", button1_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === 'GLOBAL' && 'selected') + " svelte-lrnn82");
-    			add_location(button1, file$9, 126, 6, 3549);
-    			attr_dev(ul0, "class", "svelte-lrnn82");
-    			add_location(ul0, file$9, 125, 4, 3537);
-    			attr_dev(div0, "class", "room-list svelte-lrnn82");
-    			add_location(div0, file$9, 119, 2, 3312);
-    			attr_dev(div1, "class", "user-side svelte-lrnn82");
+    			attr_dev(button1, "class", button1_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === 'GLOBAL' && 'selected') + " svelte-8kbezj");
+    			add_location(button1, file$9, 127, 6, 3590);
+    			attr_dev(ul0, "class", "svelte-8kbezj");
+    			add_location(ul0, file$9, 126, 4, 3578);
+    			attr_dev(div0, "class", "room-list svelte-8kbezj");
+    			add_location(div0, file$9, 120, 2, 3353);
+    			attr_dev(div1, "class", "user-side svelte-8kbezj");
     			add_location(div1, file$9, 108, 0, 3018);
     			set_style(h21, "background-color", /*$currentUser*/ ctx[1].color);
     			set_style(h21, "color", /*$currentUser*/ ctx[1].text);
-    			attr_dev(h21, "class", "svelte-lrnn82");
-    			add_location(h21, file$9, 167, 2, 4740);
+    			attr_dev(h21, "class", "svelte-8kbezj");
+    			add_location(h21, file$9, 168, 2, 4781);
     			attr_dev(i1, "class", "fa-solid fa-bars");
-    			add_location(i1, file$9, 174, 5, 4973);
-    			attr_dev(button2, "class", "dropdown-btn svelte-lrnn82");
-    			add_location(button2, file$9, 173, 2, 4912);
+    			add_location(i1, file$9, 176, 5, 5038);
+    			attr_dev(button2, "class", "dropdown-btn svelte-8kbezj");
+    			add_location(button2, file$9, 175, 2, 4977);
     			attr_dev(i2, "class", "fa-solid fa-rotate-right");
-    			add_location(i2, file$9, 177, 5, 5083);
-    			attr_dev(button3, "class", "refresh-btn svelte-lrnn82");
-    			add_location(button3, file$9, 176, 2, 5030);
+    			add_location(i2, file$9, 179, 5, 5148);
+    			attr_dev(button3, "class", "refresh-btn svelte-8kbezj");
+    			add_location(button3, file$9, 178, 2, 5095);
     			attr_dev(input1, "name", "newRoom");
     			attr_dev(input1, "type", "text");
     			input1.required = true;
     			attr_dev(input1, "placeholder", "Create Room...");
-    			attr_dev(input1, "class", "svelte-lrnn82");
-    			add_location(input1, file$9, 182, 6, 5246);
-    			attr_dev(button4, "class", "add-room-btn svelte-lrnn82");
-    			add_location(button4, file$9, 183, 6, 5328);
-    			attr_dev(form1, "class", "add-room svelte-lrnn82");
-    			add_location(form1, file$9, 181, 4, 5192);
-    			attr_dev(i3, "class", "fa-solid fa-earth-americas svelte-lrnn82");
-    			add_location(i3, file$9, 193, 8, 5564);
+    			attr_dev(input1, "class", "svelte-8kbezj");
+    			add_location(input1, file$9, 184, 6, 5311);
+    			attr_dev(button4, "class", "add-room-btn svelte-8kbezj");
+    			add_location(button4, file$9, 185, 6, 5393);
+    			attr_dev(form1, "class", "add-room svelte-8kbezj");
+    			add_location(form1, file$9, 183, 4, 5257);
+    			attr_dev(i3, "class", "fa-solid fa-earth-americas svelte-8kbezj");
+    			add_location(i3, file$9, 195, 8, 5629);
     			attr_dev(button5, "id", "GLOBAL");
-    			attr_dev(button5, "class", button5_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === 'GLOBAL' && 'selected') + " svelte-lrnn82");
-    			add_location(button5, file$9, 187, 6, 5400);
-    			attr_dev(ul1, "class", "svelte-lrnn82");
-    			add_location(ul1, file$9, 186, 4, 5388);
-    			attr_dev(div2, "class", "room-list-dropdown svelte-lrnn82");
+    			attr_dev(button5, "class", button5_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === 'GLOBAL' && 'selected') + " svelte-8kbezj");
+    			add_location(button5, file$9, 189, 6, 5465);
+    			attr_dev(ul1, "class", "svelte-8kbezj");
+    			add_location(ul1, file$9, 188, 4, 5453);
+    			attr_dev(div2, "class", "room-list-dropdown svelte-8kbezj");
     			attr_dev(div2, "id", "dropdown");
-    			add_location(div2, file$9, 180, 2, 5140);
-    			attr_dev(div3, "class", "user-top svelte-lrnn82");
-    			add_location(div3, file$9, 165, 0, 4689);
+    			add_location(div2, file$9, 182, 2, 5205);
+    			attr_dev(div3, "class", "user-top svelte-8kbezj");
+    			add_location(div3, file$9, 166, 0, 4730);
     		},
     		l: function claim(nodes) {
     			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
@@ -8128,10 +8128,13 @@ var app = (function () {
     			if (!mounted) {
     				dispose = [
     					listen_dev(span, "click", /*refresh*/ ctx[4], false, false, false),
+    					listen_dev(span, "keydown", null, false, false, false),
     					listen_dev(h20, "click", self$1(/*click_handler*/ ctx[8]), false, false, false),
+    					listen_dev(h20, "keydown", null, false, false, false),
     					listen_dev(form0, "submit", /*createRoom*/ ctx[5], false, false, false),
     					listen_dev(button1, "click", /*joinRoom*/ ctx[6], false, false, false),
     					listen_dev(h21, "click", self$1(/*click_handler_1*/ ctx[9]), false, false, false),
+    					listen_dev(h21, "keydown", null, false, false, false),
     					listen_dev(button2, "click", /*toggleDropdown*/ ctx[7], false, false, false),
     					listen_dev(button3, "click", /*refresh*/ ctx[4], false, false, false),
     					listen_dev(form1, "submit", /*createRoom*/ ctx[5], false, false, false),
@@ -8152,7 +8155,7 @@ var app = (function () {
     				set_style(h20, "color", /*$currentUser*/ ctx[1].text);
     			}
 
-    			if (dirty & /*$currentChatroom*/ 1 && button1_class_value !== (button1_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === 'GLOBAL' && 'selected') + " svelte-lrnn82")) {
+    			if (dirty & /*$currentChatroom*/ 1 && button1_class_value !== (button1_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === 'GLOBAL' && 'selected') + " svelte-8kbezj")) {
     				attr_dev(button1, "class", button1_class_value);
     			}
 
@@ -8192,7 +8195,7 @@ var app = (function () {
     				set_style(h21, "color", /*$currentUser*/ ctx[1].text);
     			}
 
-    			if (dirty & /*$currentChatroom*/ 1 && button5_class_value !== (button5_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === 'GLOBAL' && 'selected') + " svelte-lrnn82")) {
+    			if (dirty & /*$currentChatroom*/ 1 && button5_class_value !== (button5_class_value = "room " + (/*$currentChatroom*/ ctx[0]._id === 'GLOBAL' && 'selected') + " svelte-8kbezj")) {
     				attr_dev(button5, "class", button5_class_value);
     			}
 
