@@ -1,0 +1,243 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: rgb(48, 48, 48);
+  max-width: 850px;
+  min-width: 320px;
+  margin: auto;
+  font-family: Open Sans;
+}
+
+.resume {
+  background-color: white;
+  min-height: calc(100vh - 40px);
+  margin: 20px 0;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+}
+
+.name-banner {
+  background-color: #495676;
+  width: 100%;
+  height: 200px;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+  background-image: url("Assets/BluePaper.png");
+}
+
+.name-banner img {
+  margin-top: 58px;
+  margin-bottom: 40px;
+  transform: translateX(-4px);
+}
+
+.stitch {
+  border-top: dashed #FF8A00 3px;
+  padding-bottom: 10px;
+}
+
+.content {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  width: 100%;
+  padding: 23px 0px 23px 26px;
+}
+
+
+/* Big List */
+.big-list h1 {
+  color: #3A7BDB;
+  font-family: Open Sans;
+  font-weight: bold;
+  font-size: 1.125rem;
+  margin-bottom: 5px;
+}
+
+.big-list li {
+  list-style: none;
+  border-left: #FF8A00 solid 4px;
+  padding-left: 10px;
+  margin-bottom: 23px;
+}
+
+.big-list h2 {
+  color: black;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.big-list .dates {
+  color: #525252;
+  font-size: 12px;
+  padding-bottom: 5px;
+}
+
+.big-list p {
+  color: #525252;
+  font-size: 13px;
+}
+
+.flex-container {
+  display: flex;
+}
+
+/* Short List */
+.short-list {
+  margin-right: 20px;
+}
+
+.short-list h1 {
+  color: #3A7BDB;
+  font-family: Open Sans;
+  font-weight: bold;
+  font-size: 1.125rem;
+}
+
+.short-list li::before {
+  content: "•";
+  color: #FF8A00;
+  font-size: 1.3rem;
+  padding-right: 10px;
+}
+
+.short-list li {
+  color: black;
+  list-style: none;
+  font-family: Merriweather;
+  font-weight: bold;
+  font-size: .9rem;
+  padding: 0 0 12px 0;
+}
+
+
+/* RIGHT COLUMN */
+.right-column {
+  margin-left: 20px;
+  position: relative;
+  height: 100%;
+}
+
+/* Contacts */
+.contacts {
+  background-color: #F0F5FF;
+  border: 3px solid #3A7BDB;
+  border-right: none;
+  border-radius: 10px 0 0 10px;
+  box-sizing: border-box;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+  margin-bottom: 20px;
+  padding: 10px 36px 0 0;
+  font-family: Open Sans;
+}
+
+.contacts a {
+  display: inline-flex;
+  list-style: none;
+  padding: 10px;
+  width: 100%;
+  text-decoration: none;
+  color: #525252;
+}
+
+.contacts a:hover {
+  border-left: #FF8A00 solid 5px;
+}
+
+.contacts img {
+  margin-right: 10px;
+}
+
+.contacts h3 {
+  color: #3A7BDB;
+  font-size: 1rem;
+}
+
+.contacts p {
+  font-size: .8rem;
+}
+
+
+
+.badge-container {
+  background-color: #495676;
+  background-image: url("Assets/BluePaper.png");
+  text-align: center;
+  width: 150px;
+  border-radius: 65px 0 0 0;
+  padding: 55px 0px 35px 0px;
+  box-shadow: -2px 4px 4px rgba(0, 0, 0, 0.25);
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  transform: translateY(23px);
+}
+
+.badge-container div {
+  margin-bottom: 20px;
+}
+
+@media only screen and (max-width: 850px) {
+  .resume {
+    margin: 0;
+  }
+}
+
+
+@media only screen and (max-width: 660px) {
+  .name-banner {
+    height: 150px;
+  }
+
+  .name-banner img {
+    height: 60px;
+    margin: 50px 0px 20px 0px;
+  }
+
+  .stitch {
+    padding-bottom: 10px;
+  }
+
+  .content {
+    display: block;
+    padding: 20px;
+  }
+
+  .right-column {
+    margin: 0px;
+  }
+
+  .contacts {
+    width: 100%;
+    margin: 20px auto;
+    border: #3A7BDB 3px solid;
+    border-radius: 10px;
+    padding: 10px 30px;
+  }
+
+  .badge-container {
+    transform: translate(20px, 20px);
+  }
+
+}
+
+
+
+
+
+
+@media only screen and (max-width: 425px) {
+  .name-banner {
+    height: 125px;
+  }
+
+  .name-banner img {
+    height: 45px;
+    margin: 50px 0px 15px 0px;
+  }
+
+  .stitch {
+    padding-bottom: 10px;
+  }
+}
