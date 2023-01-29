@@ -12151,7 +12151,7 @@ var app = (function () {
     const { console: console_1 } = globals;
     const file = "src\\App.svelte";
 
-    // (48:2) {#if modalContent}
+    // (49:2) {#if modalContent}
     function create_if_block_5(ctx) {
     	let modal;
     	let current;
@@ -12199,14 +12199,14 @@ var app = (function () {
     		block,
     		id: create_if_block_5.name,
     		type: "if",
-    		source: "(48:2) {#if modalContent}",
+    		source: "(49:2) {#if modalContent}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (49:4) <Modal>
+    // (50:4) <Modal>
     function create_default_slot(ctx) {
     	let t;
 
@@ -12227,14 +12227,14 @@ var app = (function () {
     		block,
     		id: create_default_slot.name,
     		type: "slot",
-    		source: "(49:4) <Modal>",
+    		source: "(50:4) <Modal>",
     		ctx
     	});
 
     	return block;
     }
 
-    // (64:4) {:else}
+    // (65:4) {:else}
     function create_else_block(ctx) {
     	let h1;
     	let t1;
@@ -12249,8 +12249,8 @@ var app = (function () {
     			t1 = space();
     			button = element("button");
     			button.textContent = "Go Home";
-    			add_location(h1, file, 64, 6, 1778);
-    			add_location(button, file, 65, 6, 1808);
+    			add_location(h1, file, 65, 6, 1838);
+    			add_location(button, file, 66, 6, 1868);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, h1, anchor);
@@ -12278,14 +12278,14 @@ var app = (function () {
     		block,
     		id: create_else_block.name,
     		type: "else",
-    		source: "(64:4) {:else}",
+    		source: "(65:4) {:else}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (62:34) 
+    // (63:34) 
     function create_if_block_4(ctx) {
     	let profile;
     	let current;
@@ -12318,14 +12318,14 @@ var app = (function () {
     		block,
     		id: create_if_block_4.name,
     		type: "if",
-    		source: "(62:34) ",
+    		source: "(63:34) ",
     		ctx
     	});
 
     	return block;
     }
 
-    // (60:31) 
+    // (61:31) 
     function create_if_block_3(ctx) {
     	let chatroom;
     	let current;
@@ -12358,14 +12358,14 @@ var app = (function () {
     		block,
     		id: create_if_block_3.name,
     		type: "if",
-    		source: "(60:31) ",
+    		source: "(61:31) ",
     		ctx
     	});
 
     	return block;
     }
 
-    // (58:32) 
+    // (59:32) 
     function create_if_block_2(ctx) {
     	let morsedecoder;
     	let current;
@@ -12402,14 +12402,14 @@ var app = (function () {
     		block,
     		id: create_if_block_2.name,
     		type: "if",
-    		source: "(58:32) ",
+    		source: "(59:32) ",
     		ctx
     	});
 
     	return block;
     }
 
-    // (56:32) 
+    // (57:32) 
     function create_if_block_1(ctx) {
     	let login;
     	let current;
@@ -12442,14 +12442,14 @@ var app = (function () {
     		block,
     		id: create_if_block_1.name,
     		type: "if",
-    		source: "(56:32) ",
+    		source: "(57:32) ",
     		ctx
     	});
 
     	return block;
     }
 
-    // (54:4) {#if $page === 'home'}
+    // (55:4) {#if $page === 'home'}
     function create_if_block(ctx) {
     	let home;
     	let current;
@@ -12482,7 +12482,7 @@ var app = (function () {
     		block,
     		id: create_if_block.name,
     		type: "if",
-    		source: "(54:4) {#if $page === 'home'}",
+    		source: "(55:4) {#if $page === 'home'}",
     		ctx
     	});
 
@@ -12534,8 +12534,8 @@ var app = (function () {
     			div = element("div");
     			if_block1.c();
     			attr_dev(div, "class", "container svelte-3nzbdt");
-    			add_location(div, file, 52, 2, 1462);
-    			add_location(main, file, 46, 0, 1376);
+    			add_location(div, file, 53, 2, 1522);
+    			add_location(main, file, 47, 0, 1436);
     		},
     		l: function claim(nodes) {
     			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
@@ -12637,6 +12637,8 @@ var app = (function () {
     			}); //console.dir(response)
     		}
     	});
+
+    	console.log('Raspberry pi autopulled from github! Woo');
 
     	//Socket.io
     	$socket.on('connect', () => {
