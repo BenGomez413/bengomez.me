@@ -4112,7 +4112,7 @@ var app = (function () {
         connect: lookup,
     });
 
-    const page = writable('login');
+    const page = writable('home');
     const loading = writable(false);
 
     const socket = writable(lookup('http://localhost:5000'));
@@ -9346,7 +9346,7 @@ var app = (function () {
     			div1 = element("div");
     			div0 = element("div");
     			attr_dev(div0, "class", "thumb svelte-1q8zce");
-    			add_location(div0, file$5, 9, 2, 174);
+    			add_location(div0, file$5, 9, 2, 192);
     			attr_dev(div1, "class", div1_class_value = "" + (null_to_empty(/*state*/ ctx[0] ? 'switch on' : 'switch off') + " svelte-1q8zce"));
     			add_location(div1, file$5, 8, 0, 104);
     		},
@@ -9358,7 +9358,11 @@ var app = (function () {
     			append_dev(div1, div0);
 
     			if (!mounted) {
-    				dispose = listen_dev(div1, "click", /*toggle*/ ctx[1], false, false, false);
+    				dispose = [
+    					listen_dev(div1, "click", /*toggle*/ ctx[1], false, false, false),
+    					listen_dev(div1, "keydown", null, false, false, false)
+    				];
+
     				mounted = true;
     			}
     		},
@@ -9372,7 +9376,7 @@ var app = (function () {
     		d: function destroy(detaching) {
     			if (detaching) detach_dev(div1);
     			mounted = false;
-    			dispose();
+    			run_all(dispose);
     		}
     	};
 
